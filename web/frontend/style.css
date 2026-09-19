@@ -410,3 +410,8 @@ body {
   display: flex; gap: 20px; flex-wrap: wrap; font-size: 11px; color: var(--color-neutral-600);
 }
 .foot .last { margin-left: auto; }
+
+/* Collapsed SHAP panel: every bar is a positive contribution, so the track
+   has no centre axis and the label column can start flush left. */
+.feats[data-expanded="0"] .feat .bar .axis { display: none; }
+.feats-none { margin: 8px 0; font-size: 12px; line-height: 1.5; }

@@ -151,7 +151,7 @@
         </div>
 
         <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:16px">
-          <span class="kicker" id="feats-heading">Top contributors</span>
+          <span class="kicker" id="feats-heading">What pushed the error up</span>
           <button class="btn btn-ghost btn-sm" id="toggle-feats">+ Show all 46 features</button>
         </div>
         <div class="feats" id="feats" data-expanded="0"></div>
@@ -159,7 +159,9 @@
           The bold figure is the feature's <strong>real, pre-scale value</strong> — inverted from the
           stored <em>z</em> with the training mean and σ, exactly (the API stores <em>z</em> only).
           <em>z</em> beside it is how far that value sits from normal traffic, in standard deviations.
-          Bars right of centre push the error up; left of centre pull it down.
+          This list is only the features that <strong>pushed the error up</strong> — the reason the
+          flow scored where it did. Expand to see all 46, where bars right of centre push the error
+          up and bars left of centre pull it down.
         </p>
 
         <div class="truth" id="truth" hidden>
