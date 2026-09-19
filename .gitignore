@@ -39,6 +39,7 @@ artifacts/**/*.csv
 # derived artifacts; this is 6KB of results that a report cites.
 !artifacts/benchmark.json
 !artifacts/benchmark-constrained.json
+!artifacts/explanation-evaluation.json
 
 # ---- Python ----------------------------------------------------------
 __pycache__/

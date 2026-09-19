@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 import time
 from pathlib import Path
@@ -39,6 +40,13 @@ from source.model.train import get_device
 # Nothing here needs shap's INFO chatter; warnings and errors still get
 # through.
 logging.getLogger("shap").setLevel(logging.WARNING)
+
+# How many feature coalitions Kernel SHAP samples per explanation. Raised
+# from 100 after measuring that 100 does not converge -- see
+# ShapExplainer.explain and documentation/explanation-quality.md.
+# NIDS_SHAP_NSAMPLES overrides it: lower for a memory-constrained board,
+# higher when an explanation is going into a report rather than a screen.
+DEFAULT_NSAMPLES = int(os.environ.get("NIDS_SHAP_NSAMPLES", "2000"))
 
 
 
@@ -156,12 +164,30 @@ class ShapExplainer:
             per_model.append(err.cpu().numpy())
         return np.mean(per_model, axis=0)
 
-    def explain(self, feature_vector: dict[str, float], nsamples: int = 100) -> dict[str, Any]:
+    def explain(self, feature_vector: dict[str, float],
+                nsamples: int | None = None) -> dict[str, Any]:
         """`feature_vector` must already be in the standardized (post-scaler)
         space -- the same values stored in `flows.features_json`, not raw
-        NetFlow values. `nsamples` trades accuracy for latency; 100 keeps
-        this to a few seconds, appropriate for an interactive dashboard
-        click rather than a batch/offline analysis."""
+        NetFlow values.
+
+        `nsamples` is how many feature coalitions Kernel SHAP samples, and
+        it decides whether the answer means anything. Default was 100, which
+        is fast (14 ms) and does not converge: measured over 8 anomalous
+        flows explained 8 times each, 75% of features changed sign between
+        runs, the top-5 matched a converged reference 25% of the time
+        against a 11% coin-flip baseline, and the mean error was 2.4x the
+        mean attribution itself. Two clicks on the same row gave two
+        different explanations.
+
+        DEFAULT_NSAMPLES is 2000: 164 ms, sign flips down to 35%, top-5
+        agreement with the reference up to 78%. See
+        documentation/explanation-quality.md for the full curve and for why
+        not 5000 -- it is better still, but it needs more than 1.2 GB where
+        2000 fits in 1 GB, and the resource benchmark had just established
+        that the whole service runs in 600 MB.
+        """
+        if nsamples is None:
+            nsamples = DEFAULT_NSAMPLES
         x = np.array([[feature_vector[c] for c in self.feature_cols]], dtype=np.float32)
         t0 = time.time()
         with self._lock:  # see __init__: KernelExplainer is not reentrant

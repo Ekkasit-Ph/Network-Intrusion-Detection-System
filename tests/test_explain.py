@@ -76,3 +76,44 @@ def test_background_sample_smaller_than_requested(tmp_path):
     background = _sample_benign_background(path, ["f0"], 100, seed=0)
     assert background.shape == (2, 1)
     assert sorted(background.ravel().tolist()) == [1.0, 2.0]
+
+
+# ── sampling budget ───────────────────────────────────────────────────────
+
+def test_explain_defaults_to_the_converged_sampling_budget():
+    """The number of coalitions Kernel SHAP samples is the difference
+    between an explanation and a draw from a distribution. At the old
+    default of 100, 75% of features changed sign between two runs on the
+    same flow and the top-5 matched a converged reference 25% of the time --
+    a dashboard showing that is showing noise with a legend.
+
+    This pins the default reaching shap, and that an explicit argument still
+    wins, without paying for a real explain: the arithmetic is checked in
+    scripts/evaluate_explanations.py, the wiring is checked here.
+    """
+    import numpy as np
+
+    from source.explain import shap_explainer as module
+
+    seen: list[int] = []
+
+    class RecordingKernelExplainer:
+        expected_value = 0.0
+
+        def shap_values(self, x, nsamples, silent):  # noqa: ARG002
+            seen.append(nsamples)
+            return np.zeros((1, x.shape[1]), dtype=np.float64)
+
+    explainer = module.ShapExplainer.__new__(module.ShapExplainer)
+    explainer.feature_cols = ["A", "B"]
+    explainer.explainer = RecordingKernelExplainer()
+    explainer._lock = __import__("threading").Lock()
+
+    explainer.explain({"A": 0.0, "B": 0.0})
+    explainer.explain({"A": 0.0, "B": 0.0}, nsamples=250)
+
+    assert seen == [module.DEFAULT_NSAMPLES, 250]
+    assert module.DEFAULT_NSAMPLES >= 1000, (
+        "below ~1000 the attributions do not converge; see "
+        "documentation/explanation-quality.md"
+    )
