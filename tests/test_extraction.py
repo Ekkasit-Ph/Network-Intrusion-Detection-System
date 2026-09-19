@@ -433,3 +433,32 @@ def test_oversized_packets_are_left_out_of_the_histogram(tmp_path):
                row["NUM_PKTS_1024_TO_1514_BYTES"]]
     assert row["LONGEST_FLOW_PKT"] == 2040  # 20 IP + 20 TCP + 2000
     assert sum(buckets) == 0, f"jumbo packet was bucketed as {buckets}"
+
+
+# ── CPU affinity ──────────────────────────────────────────────────────────
+
+def test_extract_restores_cpu_affinity(tmp_path):
+    """nfstream narrows the calling process to a 2-CPU slice and never puts
+    it back (nfstream/utils.py::set_affinity). Everything downstream of the
+    sensor -- scaling, scoring, SHAP -- runs in this same process, so the
+    mask the caller held on entry is the mask it must still hold on exit.
+
+    Measured when it leaked, on an 8-CPU host: batched scoring lost ~25%
+    immediately, and a later torch.set_num_threads() built against the
+    narrowed mask took it from 2.7M flow/s to 10.7k.
+    """
+    import os
+
+    if not hasattr(os, "sched_getaffinity"):
+        pytest.skip("CPU affinity is a Linux concept")
+    pytest.importorskip("nfstream")
+
+    from scripts.synthetic_pcap import build
+    from source.extraction.sensor import extract
+
+    pcap = build(tmp_path / "affinity.pcap", n_flows=12)
+    before = os.sched_getaffinity(0)
+    rows = list(extract(str(pcap)))
+
+    assert rows, "the generated capture produced no flows, so nothing was exercised"
+    assert os.sched_getaffinity(0) == before

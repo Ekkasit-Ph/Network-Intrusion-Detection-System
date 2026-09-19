@@ -1,0 +1,288 @@
+{
+  "runs": [
+    {
+      "label": "cpu-1core",
+      "device": "cpu",
+      "environment": {
+        "cpu": "11th Gen Intel(R) Core(TM) i5-11320H @ 3.20GHz",
+        "cpu_cores_logical": 8,
+        "cpu_cores_available": 1,
+        "ram_gb": 15.4,
+        "gpu": "NVIDIA GeForce GTX 1650",
+        "os": "Linux 7.0.11-76070011-generic",
+        "python": "3.12.2",
+        "torch": "2.13.0+cu130",
+        "torch_threads": 1
+      },
+      "stages": {
+        "extract": {
+          "items": 3000,
+          "seconds_median": 0.6726,
+          "per_second": 4460.3,
+          "repeats": 7,
+          "note": "nfstream metering + nDPI classification, single meter process"
+        },
+        "transform": {
+          "items": 3000,
+          "seconds_median": 0.1493,
+          "per_second": 20098.2,
+          "repeats": 7,
+          "note": "includes the 50-flow behavioural window and the scaler"
+        },
+        "score": {
+          "batched": {
+            "items": 50000,
+            "seconds_median": 0.0373,
+            "per_second": 1341821.9,
+            "repeats": 7,
+            "batch_size": 512
+          },
+          "single_flow": {
+            "n": 1000,
+            "ms_p50": 0.065,
+            "ms_p95": 0.071,
+            "ms_p99": 0.076,
+            "ms_max": 0.117
+          },
+          "model_parameters": 28526,
+          "ensemble_members": 1
+        },
+        "explain": {
+          "n": 50,
+          "ms_p50": 13.409,
+          "ms_p95": 14.697,
+          "ms_p99": 15.234,
+          "ms_max": 15.234,
+          "nsamples": 100,
+          "background_size": 100
+        }
+      },
+      "memory_mb": {
+        "rss_at_start": 30.1,
+        "rss_with_bench_data": 726.7,
+        "model_only": 3.0,
+        "rss_peak": 2459.4
+      },
+      "pcap": {
+        "path": "/tmp/claude-1000/-home-ekkasit-Workspace-Project-Network-Intrusion-Detection-System/9598a3cb-7716-4d32-acdd-c017ebfd1fa1/scratchpad/suite/bench-3000.pcap",
+        "synthetic": true,
+        "flows_requested": 3000
+      },
+      "model_load_seconds": 0.003,
+      "measured_at": "2026-09-19T22:55:24+0700"
+    },
+    {
+      "label": "cpu-2core",
+      "device": "cpu",
+      "environment": {
+        "cpu": "11th Gen Intel(R) Core(TM) i5-11320H @ 3.20GHz",
+        "cpu_cores_logical": 8,
+        "cpu_cores_available": 2,
+        "ram_gb": 15.4,
+        "gpu": "NVIDIA GeForce GTX 1650",
+        "os": "Linux 7.0.11-76070011-generic",
+        "python": "3.12.2",
+        "torch": "2.13.0+cu130",
+        "torch_threads": 2
+      },
+      "stages": {
+        "extract": {
+          "items": 3000,
+          "seconds_median": 0.5424,
+          "per_second": 5530.5,
+          "repeats": 7,
+          "note": "nfstream metering + nDPI classification, single meter process"
+        },
+        "transform": {
+          "items": 3000,
+          "seconds_median": 0.1503,
+          "per_second": 19961.5,
+          "repeats": 7,
+          "note": "includes the 50-flow behavioural window and the scaler"
+        },
+        "score": {
+          "batched": {
+            "items": 50000,
+            "seconds_median": 0.0279,
+            "per_second": 1790638.2,
+            "repeats": 7,
+            "batch_size": 512
+          },
+          "single_flow": {
+            "n": 1000,
+            "ms_p50": 0.067,
+            "ms_p95": 0.101,
+            "ms_p99": 0.12,
+            "ms_max": 0.135
+          },
+          "model_parameters": 28526,
+          "ensemble_members": 1
+        },
+        "explain": {
+          "n": 50,
+          "ms_p50": 10.684,
+          "ms_p95": 12.178,
+          "ms_p99": 12.202,
+          "ms_max": 12.202,
+          "nsamples": 100,
+          "background_size": 100
+        }
+      },
+      "memory_mb": {
+        "rss_at_start": 30.1,
+        "rss_with_bench_data": 751.0,
+        "model_only": 3.1,
+        "rss_peak": 2482.8
+      },
+      "pcap": {
+        "path": "/tmp/claude-1000/-home-ekkasit-Workspace-Project-Network-Intrusion-Detection-System/9598a3cb-7716-4d32-acdd-c017ebfd1fa1/scratchpad/suite/bench-3000.pcap",
+        "synthetic": true,
+        "flows_requested": 3000
+      },
+      "model_load_seconds": 0.003,
+      "measured_at": "2026-09-19T22:55:36+0700"
+    },
+    {
+      "label": "cpu-8core-all",
+      "device": "cpu",
+      "environment": {
+        "cpu": "11th Gen Intel(R) Core(TM) i5-11320H @ 3.20GHz",
+        "cpu_cores_logical": 8,
+        "cpu_cores_available": 8,
+        "ram_gb": 15.4,
+        "gpu": "NVIDIA GeForce GTX 1650",
+        "os": "Linux 7.0.11-76070011-generic",
+        "python": "3.12.2",
+        "torch": "2.13.0+cu130",
+        "torch_threads": 4
+      },
+      "stages": {
+        "extract": {
+          "items": 3000,
+          "seconds_median": 0.3411,
+          "per_second": 8796.1,
+          "repeats": 7,
+          "note": "nfstream metering + nDPI classification, single meter process"
+        },
+        "transform": {
+          "items": 3000,
+          "seconds_median": 0.1472,
+          "per_second": 20384.7,
+          "repeats": 7,
+          "note": "includes the 50-flow behavioural window and the scaler"
+        },
+        "score": {
+          "batched": {
+            "items": 50000,
+            "seconds_median": 0.0235,
+            "per_second": 2131340.0,
+            "repeats": 7,
+            "batch_size": 512
+          },
+          "single_flow": {
+            "n": 1000,
+            "ms_p50": 0.067,
+            "ms_p95": 0.083,
+            "ms_p99": 0.116,
+            "ms_max": 0.184
+          },
+          "model_parameters": 28526,
+          "ensemble_members": 1
+        },
+        "explain": {
+          "n": 50,
+          "ms_p50": 8.716,
+          "ms_p95": 10.191,
+          "ms_p99": 12.153,
+          "ms_max": 12.153,
+          "nsamples": 100,
+          "background_size": 100
+        }
+      },
+      "memory_mb": {
+        "rss_at_start": 30.2,
+        "rss_with_bench_data": 767.5,
+        "model_only": 3.1,
+        "rss_peak": 2515.6
+      },
+      "pcap": {
+        "path": "/tmp/claude-1000/-home-ekkasit-Workspace-Project-Network-Intrusion-Detection-System/9598a3cb-7716-4d32-acdd-c017ebfd1fa1/scratchpad/suite/bench-3000.pcap",
+        "synthetic": true,
+        "flows_requested": 3000
+      },
+      "model_load_seconds": 0.003,
+      "measured_at": "2026-09-19T22:55:45+0700"
+    },
+    {
+      "label": "gpu",
+      "device": "cuda",
+      "environment": {
+        "cpu": "11th Gen Intel(R) Core(TM) i5-11320H @ 3.20GHz",
+        "cpu_cores_logical": 8,
+        "cpu_cores_available": 8,
+        "ram_gb": 15.4,
+        "gpu": "NVIDIA GeForce GTX 1650",
+        "os": "Linux 7.0.11-76070011-generic",
+        "python": "3.12.2",
+        "torch": "2.13.0+cu130",
+        "torch_threads": 4
+      },
+      "stages": {
+        "extract": {
+          "items": 3000,
+          "seconds_median": 0.3476,
+          "per_second": 8629.9,
+          "repeats": 7,
+          "note": "nfstream metering + nDPI classification, single meter process"
+        },
+        "transform": {
+          "items": 3000,
+          "seconds_median": 0.1487,
+          "per_second": 20177.5,
+          "repeats": 7,
+          "note": "includes the 50-flow behavioural window and the scaler"
+        },
+        "score": {
+          "batched": {
+            "items": 50000,
+            "seconds_median": 0.0099,
+            "per_second": 5033637.3,
+            "repeats": 7,
+            "batch_size": 512
+          },
+          "single_flow": {
+            "n": 1000,
+            "ms_p50": 0.136,
+            "ms_p95": 0.149,
+            "ms_p99": 0.163,
+            "ms_max": 0.195
+          },
+          "model_parameters": 28526,
+          "ensemble_members": 1
+        },
+        "explain": {
+          "n": 50,
+          "ms_p50": 6.461,
+          "ms_p95": 7.006,
+          "ms_p99": 7.391,
+          "ms_max": 7.391,
+          "nsamples": 100,
+          "background_size": 100
+        }
+      },
+      "memory_mb": {
+        "rss_at_start": 30.2,
+        "rss_with_bench_data": 771.2,
+        "model_only": 90.8,
+        "rss_peak": 2707.5
+      },
+      "pcap": {
+        "path": "/tmp/claude-1000/-home-ekkasit-Workspace-Project-Network-Intrusion-Detection-System/9598a3cb-7716-4d32-acdd-c017ebfd1fa1/scratchpad/suite/bench-3000.pcap",
+        "synthetic": true,
+        "flows_requested": 3000
+      },
+      "model_load_seconds": 0.174,
+      "measured_at": "2026-09-19T22:55:54+0700"
+    }
+  ]
+}

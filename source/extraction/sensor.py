@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import csv
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Any, Iterator
@@ -191,8 +192,42 @@ def extract(source: str, idle_timeout: int = 15, active_timeout: int = 120,
         snapshot_length=snapshot_length,
         accounting_mode=ACCOUNTING_MODE_IP_LAYER,
     )
-    for flow in streamer:
-        yield flow_to_row(flow)
+
+    # nfstream pins *this* process to a 2-CPU slice of whatever mask it was
+    # given (nfstream/utils.py::set_affinity, called from streamer.py) and
+    # never puts it back. Its meters run in their own processes, so the only
+    # thing that narrowing reaches is everything downstream of this
+    # generator -- scaling, scoring, SHAP -- which silently loses CPUs it
+    # was never meant to give up.
+    #
+    # Measured on an 8-CPU host: batched scoring drops ~25% straight away,
+    # and if anything later rebuilds torch's thread pool against the
+    # narrowed mask (torch.set_num_threads with the default 4 threads on 2
+    # CPUs) throughput collapses from 2.7M flow/s to 10.7k, a 250x cliff
+    # that reads as a hung process rather than a slow one.
+    #
+    # Restoring the mask that was in force on entry is not the same as
+    # grabbing more CPUs: taskset, cgroup and container limits all still
+    # apply, because they are what that mask already encodes.
+    try:
+        original_affinity = os.sched_getaffinity(0)
+    except AttributeError:  # not Linux; nfstream does not narrow anything there
+        original_affinity = None
+
+    def _restore() -> None:
+        if original_affinity and os.sched_getaffinity(0) != original_affinity:
+            try:
+                os.sched_setaffinity(0, original_affinity)
+            except OSError:  # a supervisor may legitimately refuse; not fatal
+                log.debug("could not restore CPU affinity to %s", sorted(original_affinity))
+
+    try:
+        for flow in streamer:
+            row = flow_to_row(flow)
+            _restore()
+            yield row
+    finally:
+        _restore()
 
 
 def main() -> None:
