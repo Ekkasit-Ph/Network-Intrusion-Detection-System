@@ -1,0 +1,139 @@
+{
+  "input_csv": "/home/ekkasit/Workspace/Project/Network-Intrusion-Detection-System/data/raw/NF-ToN-IoT-v2.csv",
+  "nrows_requested": null,
+  "seed": 42,
+  "rows_loaded": 16940496,
+  "cleaning": {
+    "duplicates": {
+      "rows_before": 16940496,
+      "rows_after": 16940496,
+      "duplicates_removed": 0
+    },
+    "missing_and_inf": {
+      "extreme_values_capped": {
+        "SRC_TO_DST_AVG_THROUGHPUT": 0,
+        "DST_TO_SRC_AVG_THROUGHPUT": 0,
+        "SRC_TO_DST_SECOND_BYTES": 105,
+        "DST_TO_SRC_SECOND_BYTES": 111
+      },
+      "nan_filled": {
+        "ICMP_TYPE": 0,
+        "ICMP_IPV4_TYPE": 0,
+        "DNS_QUERY_ID": 0,
+        "DNS_QUERY_TYPE": 0,
+        "DNS_TTL_ANSWER": 0,
+        "FTP_COMMAND_RET_CODE": 0
+      }
+    },
+    "class_distribution": {
+      "Benign": 6099469,
+      "scanning": 3781419,
+      "xss": 2455020,
+      "ddos": 2026234,
+      "password": 1153323,
+      "dos": 712609,
+      "injection": 684465,
+      "backdoor": 16809,
+      "mitm": 7723,
+      "ransomware": 3425
+    }
+  },
+  "behavioral_features": {
+    "window": 50,
+    "n_sources": 23079,
+    "n_destinations": 6868,
+    "src_distinct_dst_ips_last_w": {
+      "mean": 6.147305604275105,
+      "max": 50
+    },
+    "src_distinct_dst_ports_last_w": {
+      "mean": 24.13163664157177,
+      "max": 50
+    },
+    "dst_distinct_src_ips_last_w": {
+      "mean": 1.836018673833399,
+      "max": 50
+    }
+  },
+  "split": {
+    "train_rows": 4269628,
+    "val_rows": 6335433,
+    "test_rows": 6335435,
+    "train_class_distribution": {
+      "Benign": 4269628
+    },
+    "val_class_distribution": {
+      "scanning": 1890709,
+      "xss": 1227510,
+      "ddos": 1013117,
+      "Benign": 914920,
+      "password": 576661,
+      "dos": 356304,
+      "injection": 342232,
+      "backdoor": 8405,
+      "mitm": 3862,
+      "ransomware": 1713
+    },
+    "test_class_distribution": {
+      "scanning": 1890710,
+      "xss": 1227510,
+      "ddos": 1013117,
+      "Benign": 914921,
+      "password": 576662,
+      "dos": 356305,
+      "injection": 342233,
+      "backdoor": 8404,
+      "mitm": 3861,
+      "ransomware": 1712
+    }
+  },
+  "feature_columns": [
+    "L7_PROTO",
+    "IN_BYTES",
+    "OUT_BYTES",
+    "IN_PKTS",
+    "OUT_PKTS",
+    "FLOW_DURATION_MILLISECONDS",
+    "TCP_FLAGS",
+    "CLIENT_TCP_FLAGS",
+    "SERVER_TCP_FLAGS",
+    "DURATION_IN",
+    "DURATION_OUT",
+    "MIN_TTL",
+    "MAX_TTL",
+    "LONGEST_FLOW_PKT",
+    "SHORTEST_FLOW_PKT",
+    "MIN_IP_PKT_LEN",
+    "MAX_IP_PKT_LEN",
+    "SRC_TO_DST_SECOND_BYTES",
+    "DST_TO_SRC_SECOND_BYTES",
+    "RETRANSMITTED_IN_BYTES",
+    "RETRANSMITTED_IN_PKTS",
+    "RETRANSMITTED_OUT_BYTES",
+    "RETRANSMITTED_OUT_PKTS",
+    "SRC_TO_DST_AVG_THROUGHPUT",
+    "DST_TO_SRC_AVG_THROUGHPUT",
+    "NUM_PKTS_UP_TO_128_BYTES",
+    "NUM_PKTS_128_TO_256_BYTES",
+    "NUM_PKTS_256_TO_512_BYTES",
+    "NUM_PKTS_512_TO_1024_BYTES",
+    "NUM_PKTS_1024_TO_1514_BYTES",
+    "TCP_WIN_MAX_IN",
+    "TCP_WIN_MAX_OUT",
+    "ICMP_TYPE",
+    "ICMP_IPV4_TYPE",
+    "DNS_QUERY_ID",
+    "DNS_QUERY_TYPE",
+    "DNS_TTL_ANSWER",
+    "FTP_COMMAND_RET_CODE",
+    "SRC_DISTINCT_DST_IPS_LAST_W",
+    "SRC_DISTINCT_DST_PORTS_LAST_W",
+    "DST_DISTINCT_SRC_IPS_LAST_W",
+    "PROTOCOL_1.0",
+    "PROTOCOL_2.0",
+    "PROTOCOL_6.0",
+    "PROTOCOL_17.0",
+    "PROTOCOL_58.0"
+  ],
+  "n_features": 46
+}

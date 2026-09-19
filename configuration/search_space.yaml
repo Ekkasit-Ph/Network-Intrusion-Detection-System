@@ -1,0 +1,25 @@
+# Hyperparameter grid for source/model/tune.py — mirrors the table in
+# MODEL_DEVELOPMENT.md section 3. Edit values here to change what the sweep
+# covers; no code changes needed.
+#
+# Widened beyond MODEL_DEVELOPMENT.md's original starting suggestion after
+# the first sweep (20 random trials, best val_auc=0.8729 at latent_dim=16)
+# showed no clear plateau at the edges of that range -- worth checking
+# whether more latent capacity or deeper/wider hidden layers helps further.
+# Grid mode would be 12*9*7*4*6 = 18,144 combos with these ranges -- use
+# --mode random --n-trials N instead of exhaustive grid.
+
+latent_dim: [2, 4, 6, 8, 12, 16, 20, 24, 32, 40, 48, 64]
+hidden_dims:
+  - [16]
+  - [32]
+  - [64]
+  - [32, 16]
+  - [64, 32]
+  - [64, 32, 16]
+  - [96, 48]
+  - [128, 64]
+  - [128, 64, 32]
+learning_rate: [0.02, 0.01, 0.005, 0.001, 0.0005, 0.0001, 0.00005]
+batch_size: [128, 256, 512, 1024]
+dropout: [0.0, 0.05, 0.1, 0.15, 0.2, 0.3]

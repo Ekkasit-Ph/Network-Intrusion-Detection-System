@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NIDS — Autoencoder + SHAP</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="top-left">
+    <div class="brand"><b>NIDS</b><span>Autoencoder · SHAP</span></div>
+    <div class="rule-v"></div>
+    <div class="source"><span class="beat"></span><span id="source-banner">Connecting…</span></div>
+    <span class="status" id="status" data-state="live">Polling 2s</span>
+  </div>
+  <div class="top-right">
+    <label class="check"><input type="checkbox" id="dev-toggle"><span class="box"></span><span>Dev mode</span></label>
+    <button class="btn btn-primary btn-md" id="pause-btn" style="min-width:132px">Pause stream</button>
+  </div>
+</header>
+
+<div class="stats" id="stats"></div>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" id="tab-live"  aria-selected="true"  aria-controls="view-live">Live</button>
+  <button role="tab" id="tab-trend" aria-selected="false" aria-controls="view-trend">Trend</button>
+  <button role="tab" id="tab-gaps"  aria-selected="false" aria-controls="view-gaps">Firewall gaps</button>
+  <span class="tab-hint" id="tab-hint">Click any flow to explain it</span>
+</nav>
+
+<div class="banner" id="stall-banner" hidden>
+  <b>Stalled</b><span id="stall-text"></span>
+</div>
+
+<!-- ── LIVE ─────────────────────────────────────────────────────────── -->
+<div class="live" id="view-live" role="tabpanel" aria-labelledby="tab-live" data-panel="open">
+  <div class="live-main">
+
+    <section class="spot">
+      <div class="spot-head">
+        <div style="min-width:0">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span class="kicker kicker-accent" id="spot-kicker">Latest flow · spotlight</span>
+            <button class="btn btn-ghost" id="unpin-btn" hidden
+                    style="font-size:10.5px;min-height:20px;letter-spacing:.08em;text-transform:uppercase">Release → follow latest</button>
+          </div>
+          <div class="spot-id"><b id="spot-id">—</b><span class="dim" id="spot-time"></span></div>
+          <div class="spot-pair">
+            <span id="spot-src"></span><span class="arrow">→</span><span id="spot-dst"></span>
+            <span class="tag tag-outline" id="spot-proto"></span>
+            <span class="tag tag-neutral" id="spot-service"></span>
+          </div>
+        </div>
+        <div class="spot-actions">
+          <span class="tag-big tag-normal" id="spot-verdict">—</span>
+          <button class="btn btn-secondary btn-md" id="explain-spot">Explain with SHAP</button>
+        </div>
+      </div>
+
+      <div style="margin-top:18px">
+        <div class="gauge-head">
+          <div class="facts">
+            <span class="kicker">Reconstruction error</span>
+            <span class="num" id="spot-err" style="font-size:17px;font-weight:600"></span>
+            <span class="kicker">Threshold</span>
+            <span class="num muted" id="spot-thr" style="font-size:14px"></span>
+          </div>
+          <span class="ratio" id="spot-ratio"></span>
+        </div>
+        <div class="gauge">
+          <div class="fill" id="spot-fill"></div>
+          <div class="mark"></div><div class="mark-label">Threshold</div>
+          <span class="t0">0</span><span class="t1">1.00×</span><span class="t3">3.00×+</span>
+        </div>
+        <p class="readout" id="spot-readout"></p>
+      </div>
+    </section>
+
+    <section>
+      <div class="stream-bar">
+        <span class="kicker">Flow stream</span>
+        <label class="check"><input type="checkbox" id="only-anom"><span class="box"></span><span>Anomalies only</span></label>
+        <span class="dim" id="table-note" style="margin-left:auto;font-size:11px"></span>
+      </div>
+      <div class="filter-bar">
+        <input class="input" id="search" placeholder="Filter by IP, port or flow id" style="width:230px">
+        <select class="input" id="proto-filter" style="width:110px">
+          <option value="all">All proto</option><option>TCP</option><option>UDP</option><option>ICMP</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:7px;font-size:11.5px" class="muted">
+          <span id="ratio-label" style="white-space:nowrap">any × thr</span>
+          <input type="range" id="min-ratio" min="0" max="4" step="0.5" value="0" style="width:110px;accent-color:var(--color-accent)">
+        </label>
+        <button class="btn btn-ghost btn-sm" id="clear-filters">Clear</button>
+        <span class="key-hint">Space pause · J/K move · Enter explain · Esc release</span>
+      </div>
+      <div class="grid-scroll">
+        <div class="row-head">
+          <span>Time</span><span>Source → destination</span><span>Proto</span>
+          <span class="r">Error</span><span class="r">×Thr</span><span class="r">Verdict</span>
+        </div>
+        <div class="rows-scroll" id="rows"></div>
+      </div>
+      <div class="empty" id="rows-empty" hidden></div>
+    </section>
+  </div>
+
+  <aside class="panel" id="panel">
+    <div id="panel-open">
+      <div class="panel-head">
+        <b>EXPLANATION</b>
+        <span class="dim mono" id="shap-meta" style="font-size:10.5px">on request</span>
+        <button class="btn btn-ghost" id="panel-toggle" title="Collapse" style="font-size:14px;min-height:22px;padding:0 4px">›</button>
+      </div>
+      <div class="recent" id="recent" hidden></div>
+
+      <div class="panel-note" id="shap-empty">
+        <p style="margin:0 0 10px">Pick any flow in the stream, or press <em>Explain with SHAP</em> on the spotlight.</p>
+        <p style="margin:0" class="dim">SHAP is computed on request only — never for every flow — because one explanation takes from ~23&nbsp;ms up to a few seconds.</p>
+      </div>
+
+      <div id="shap-loading" hidden style="padding:18px 16px">
+        <div class="loading-line"><span class="beat"></span><span id="shap-loading-text"></span></div>
+        <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+        <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+      </div>
+
+      <div id="shap-error" hidden style="padding:16px;border-bottom:2px solid var(--color-accent)">
+        <div class="tag tag-anom">Explain failed</div>
+        <p style="margin:9px 0 0;font-size:12.5px;line-height:1.55" id="shap-error-msg"></p>
+        <button class="btn btn-secondary btn-md" id="retry-shap" style="margin-top:11px">Retry SHAP</button>
+      </div>
+
+      <div class="panel-body" id="shap-ready" hidden>
+        <div class="mono" id="shap-flow-id" style="font-size:12.5px"></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+          <span class="tag-big" id="shap-verdict"></span>
+          <span class="muted" id="shap-ratio" style="font-size:11.5px"></span>
+        </div>
+
+        <div class="additivity">
+          <div class="h kicker">Additivity check</div>
+          <div class="b">
+            <div><span class="muted">base_value</span><span id="add-base"></span></div>
+            <div><span class="muted">+ Σ shap_values</span><span id="add-sum"></span></div>
+            <div class="total"><span>= error</span><span id="add-err"></span></div>
+            <div style="margin-top:4px;font-size:10.5px" class="dim"><span>residual</span><span id="add-res"></span></div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:16px">
+          <span class="kicker" id="feats-heading">Top contributors</span>
+          <button class="btn btn-ghost btn-sm" id="toggle-feats">+ Show all 46 features</button>
+        </div>
+        <div class="feats" id="feats" data-expanded="0"></div>
+        <p style="margin:12px 0 0;font-size:11px;line-height:1.5;text-wrap:pretty" class="dim">
+          The bold figure is the feature's <strong>real, pre-scale value</strong> — inverted from the
+          stored <em>z</em> with the training mean and σ, exactly (the API stores <em>z</em> only).
+          <em>z</em> beside it is how far that value sits from normal traffic, in standard deviations.
+          Bars right of centre push the error up; left of centre pull it down.
+        </p>
+
+        <div class="truth" id="truth" hidden>
+          <div class="h">Dev mode · replay ground truth</div>
+          <div class="b">
+            <div class="kv"><span class="muted">Labelled</span><span style="font-weight:600" id="truth-label"></span></div>
+            <div class="kv" style="margin-top:3px"><span class="muted">Model call</span><span class="tag" id="truth-verdict"></span></div>
+            <p style="margin:8px 0 0" id="truth-expect"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="panel-reopen" id="panel-reopen" hidden><span>‹ Explanation</span></button>
+  </aside>
+</div>
+
+<!-- ── TREND ────────────────────────────────────────────────────────── -->
+<div class="pad" id="view-trend" role="tabpanel" aria-labelledby="tab-trend" hidden>
+  <div class="trend-controls">
+    <span class="kicker">Window</span>
+    <div class="seg" id="window-seg"></div>
+    <span class="kicker" style="margin-left:10px">Chart</span>
+    <div class="seg" id="chart-seg"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="chart-frame">
+    <div class="chart-row">
+      <div class="axis-l" id="axis-l"><span class="axis-title" id="axis-l-title"></span></div>
+      <div class="plot">
+        <div class="cells" id="cells"></div>
+        <svg id="chart" viewBox="0 0 1000 300" width="100%" height="300" preserveAspectRatio="none" role="img">
+          <defs>
+            <pattern id="nidsHatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="8" height="8" fill="#eae7e7"></rect>
+              <line x1="0" y1="0" x2="0" y2="8" stroke="#d7d3d3" stroke-width="4"></line>
+            </pattern>
+          </defs>
+          <g id="chart-body"></g>
+        </svg>
+      </div>
+      <div class="axis-r" id="axis-r" hidden><span class="axis-title">Flows / bucket</span></div>
+    </div>
+    <div class="x-axis">
+      <div class="spacer-l"></div>
+      <div class="ticks" id="x-ticks"></div>
+      <div class="spacer-r" id="x-spacer-r" hidden></div>
+    </div>
+  </div>
+  <p class="chart-caption" id="chart-caption"></p>
+
+  <section class="drill" id="drill" hidden>
+    <div class="drill-head">
+      <b id="drill-title"></b><span class="meta" id="drill-meta"></span>
+      <button class="btn btn-sm" id="drill-close">Close</button>
+    </div>
+    <p class="drill-note" id="drill-note"></p>
+    <div id="drill-table" hidden>
+      <div class="drill-head-row">
+        <span>Time</span><span>Flow</span><span>Source → destination</span><span>Proto</span>
+        <span class="r" style="text-align:right">Error</span><span class="r" style="text-align:right">×Thr</span>
+        <span class="r" style="text-align:right">Verdict</span>
+      </div>
+      <div class="drill-rows" id="drill-rows"></div>
+    </div>
+  </section>
+
+  <div class="trend-facts">
+    <span>peak <b id="trend-peak">—</b></span>
+    <span>mean <b id="trend-mean">—</b></span>
+    <span>silent buckets <b id="trend-nulls">—</b></span>
+    <span class="dim" style="margin-left:auto">Drag across columns to select a span · shift-click to extend</span>
+  </div>
+
+  <div class="insights" id="insights"></div>
+</div>
+
+<!-- ── GAPS ─────────────────────────────────────────────────────────── -->
+<div class="pad" id="view-gaps" role="tabpanel" aria-labelledby="tab-gaps" hidden>
+  <p class="gaps-intro">
+    Every row here is a flow the model flagged as anomalous — error above threshold.
+    <strong>GAP</strong> means the firewall rule set would still have let it through: the part of the
+    picture only this system sees. <strong>Covered</strong> means a rule already blocks it.
+    <strong>Insufficient data</strong> means the flow record could not be matched against a rule — it
+    does not mean the flow is safe.
+  </p>
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;flex-wrap:wrap">
+    <label class="check"><input type="checkbox" id="gap-only"><span class="box"></span><span>GAP only</span></label>
+    <span class="dim" style="font-size:11px">Click a row to pin it and explain it on the Live tab</span>
+  </div>
+  <div class="gaps-table">
+    <div class="gap-head">
+      <span>Time</span><span>Flow</span><span>Source → destination</span>
+      <span class="r" style="text-align:right">Error</span><span>Firewall action logged</span>
+      <span class="r" style="text-align:right">Assessment</span>
+    </div>
+    <div id="gap-rows"></div>
+  </div>
+  <div class="empty" id="gaps-empty" hidden></div>
+  <div class="trend-facts">
+    <span>gaps <b id="gap-count">0</b></span>
+    <span>covered <b id="covered-count">0</b></span>
+    <span>insufficient data <b id="unknown-count">0</b></span>
+  </div>
+</div>
+
+<footer class="foot">
+  <span id="foot-metrics"></span>
+  <span>Polling /alerts every 2s · SHAP on request</span>
+  <span class="last">Anomalous means unusual, not an attack — SHAP is there for the analyst to judge.</span>
+</footer>
+
+<script src="feature-labels.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

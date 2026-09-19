@@ -1,0 +1,13 @@
+{
+  "method": "percentile",
+  "value": 0.0019442916382104158,
+  "percentile": 95,
+  "selection_criterion": "max recall on validation set among candidates with FPR <= 0.05",
+  "val_metrics_at_selected_threshold": {
+    "precision": 0.9904562618655206,
+    "recall": 0.8758495736473652,
+    "f1": 0.9296340162092257,
+    "fpr": 0.05,
+    "accuracy": 0.8865578722085767
+  }
+}

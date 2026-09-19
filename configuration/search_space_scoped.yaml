@@ -1,0 +1,22 @@
+# Scoped re-tune after adding behavioral features (input_dim went from ~42
+# to 45, including two high-importance new columns -- see
+# artifacts/models/behavioral/feature_importance.json). Narrowed around the
+# expanded-search sweep's winner (latent_dim=48, hidden=[128,64],
+# lr=0.001, batch_size=1024, dropout=0.05, val_auc=0.9161) rather than
+# repeating the full 70-trial search: with only 3 new dimensions added,
+# the previous optimum is a reasonable prior, not a reason to re-explore
+# the entire original space from scratch. latent_dim/hidden_dims get the
+# widest berth since those are the two most likely to shift when input
+# dimensionality/information content changes; lr/batch_size/dropout are
+# narrowed to the previous winner +/- one neighboring value each.
+
+latent_dim: [24, 32, 40, 48, 56, 64, 80]
+hidden_dims:
+  - [64, 32]
+  - [96, 48]
+  - [128, 64]
+  - [128, 64, 32]
+  - [160, 80]
+learning_rate: [0.001, 0.0005]
+batch_size: [512, 1024]
+dropout: [0.0, 0.05, 0.1]

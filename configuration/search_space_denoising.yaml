@@ -1,0 +1,37 @@
+# Scoped re-tune with the corrected selection metric (recall@FPR<=5% instead
+# of full AUC -- see tune.py's module docstring for why they can disagree)
+# and `noise_std` as a proper swept dimension for the first time (the
+# artifacts/models/denoising model used noise_std=0.15 picked by hand, one
+# value, never compared against alternatives). latent_dim spans both a
+# real bottleneck (well below input_dim=46) and the overcomplete range the
+# hand-picked denoising run used, since noise injection -- unlike dropout --
+# doesn't strictly need latent_dim < input_dim to avoid trivial identity
+# mapping (see engineer_features.py-adjacent discussion in train.py's
+# `noise_std` docstring).
+#
+# For --mode optuna specifically: `learning_rate` and `noise_std` are
+# genuinely continuous, so run_optuna_sweep's objective() suggests them via
+# suggest_float (log-scale for learning_rate) over [min(list), max(list)]
+# rather than picking discrete points from the list below -- the list still
+# sets the bounds, and --mode grid/random still draw from it as discrete
+# points. Widened learning_rate's bounds here (was just [0.001, 0.0005], a
+# 2x range picked from earlier hand-tuning, never itself validated as
+# spanning the true optimum) after finding the same "sampler can never
+# leave the listed points" issue for noise_std on a 25-trial run: the
+# best trial found (noise_std=0.2) sat right at the edge of an untested
+# 0.2-0.3 gap, which suggest_categorical could never have explored no
+# matter how many more trials ran.
+
+latent_dim: [16, 24, 32, 40, 48, 56, 64]
+hidden_dims:
+  - [64]              # single layer, wide
+  - [128]              # single layer, wider
+  - [32, 16]           # small/shallow -- pairs proportionally with small latent_dim better than the below
+  - [64, 32]
+  - [96, 48]
+  - [128, 64]
+  - [128, 64, 32]
+learning_rate: [0.0001, 0.0005, 0.001, 0.005]
+batch_size: [256, 512, 1024]
+dropout: [0.0]
+noise_std: [0.0, 0.05, 0.1, 0.15, 0.2, 0.3]

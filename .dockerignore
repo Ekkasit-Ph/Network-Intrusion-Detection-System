@@ -1,0 +1,33 @@
+# Keep the build context small and avoid baking unused data into the
+# image. Paths are listed explicitly (not a blanket "data/*" + negation)
+# because Docker, like git, won't look inside a directory once a pattern
+# above has excluded it wholesale -- an exact-path list is what actually
+# works, not a broad exclude some later "!" tries to carve exceptions out of.
+
+data/raw
+data/processed
+data/processed_experiments
+data/processed_w50/val.parquet
+data/nids.db
+
+artifacts/preprocessing
+artifacts/preprocessing_experiments
+artifacts/models/experiments
+artifacts/models/optuna-fpr1pct
+artifacts/models/optuna-denoising-50/threshold_analysis.json
+
+Dataset
+
+.venv
+__pycache__
+**/__pycache__
+*.pyc
+.pytest_cache
+
+.git
+tests
+documentation
+scripts
+
+*.log
+.DS_Store

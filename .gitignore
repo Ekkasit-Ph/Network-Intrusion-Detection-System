@@ -1,0 +1,57 @@
+# ---- Data ------------------------------------------------------------
+# The raw dataset and every derived split are large and regenerable
+# (source/preprocessing/pipeline.py). Ignored by extension rather than by
+# directory so a future data/processed_<variant>/ needs no new rule, and so
+# the small JSON sidecars beside them stay tracked -- feature_columns.json
+# is read at serve time and COPYd by the Dockerfile, so a fresh clone must
+# have it.
+data/**/*.parquet
+data/**/*.csv
+data/**/*.db
+data/*.db
+
+# Window-size / feature sweeps: many variants of the same split (~1.7GB),
+# none of them needed to reproduce the deployed model.
+data/processed_experiments/
+
+Dataset/data/*.csv
+
+# ---- Artifacts -------------------------------------------------------
+# Ignore generated model/data files by extension rather than blanket-ignoring
+# the directory -- `artifacts/*` would also hide artifacts/models/README.md
+# (hand-written, meant to be tracked) since git won't look inside an ignored
+# directory at all, no matter what's negated below it. Extension-based
+# matching also scales to any future artifacts/models/<version>/ folder.
+artifacts/**/*.pkl
+artifacts/**/*.pt
+artifacts/**/*.json
+artifacts/**/*.csv
+
+# ...except the deployed model and the preprocessing artifacts paired with
+# it. The Dockerfile COPYs both, so a clone missing them cannot build or
+# serve -- and model.pt is the deliverable. ~276KB together, which is what
+# a version-controlled artifact this small should cost.
+!artifacts/models/optuna-denoising-50/**
+!artifacts/preprocessing_w50/**
+
+# ---- Python ----------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# ---- Virtual environments --------------------------------------------
+.venv/
+venv/
+env/
+
+# ---- Editors / OS ----------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+
+# ---- Misc ------------------------------------------------------------
+*.log

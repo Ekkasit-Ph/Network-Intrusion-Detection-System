@@ -1,0 +1,16 @@
+{
+  "input_dim": 46,
+  "latent_dim": 64,
+  "hidden_dims": [
+    128
+  ],
+  "dropout": 0.0,
+  "lr": 0.00040534446710776954,
+  "batch_size": 256,
+  "noise_std": 0.21672064022205478,
+  "seed": 42,
+  "selected_by": "recall_at_fpr",
+  "max_fpr": 0.05,
+  "val_auc": 0.9586099341891512,
+  "recall_at_fpr": 0.8758495736473652
+}

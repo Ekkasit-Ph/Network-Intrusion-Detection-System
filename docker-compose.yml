@@ -1,0 +1,19 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      # Named volume, not a bind mount: the SQLite DB persists across
+      # `docker compose restart` without depending on host-machine paths
+      # matching (relevant on presentation day, on a machine that isn't
+      # the dev machine this was built on).
+      - nids-data:/app/data_persisted
+    environment:
+      # database.py's DEFAULT_DB_PATH is PROJECT_ROOT/data/nids.db; point
+      # it at the persisted volume instead of the image's baked-in
+      # (read-only-in-spirit) data/ directory.
+      - NIDS_DB_PATH=/app/data_persisted/nids.db
+
+volumes:
+  nids-data:
