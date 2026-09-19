@@ -38,6 +38,7 @@ artifacts/**/*.csv
 # generated model file. The rule above is about not versioning large
 # derived artifacts; this is 6KB of results that a report cites.
 !artifacts/benchmark.json
+!artifacts/benchmark-constrained.json
 
 # ---- Python ----------------------------------------------------------
 __pycache__/

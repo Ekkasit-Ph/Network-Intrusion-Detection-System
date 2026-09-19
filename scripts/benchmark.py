@@ -96,6 +96,7 @@ def describe_environment() -> dict[str, Any]:
         "python": platform.python_version(),
         "torch": torch.__version__,
         "torch_threads": torch.get_num_threads(),
+        "cpu_capability": str(torch.backends.cpu.get_cpu_capability()),
     }
 
 
@@ -284,6 +285,12 @@ def run_one(args: argparse.Namespace) -> dict[str, Any]:
         "label": args.label,
         "device": args.device,
         "environment": describe_environment(),
+        "constraint": {
+            "cpu_quota_percent": args.quota_percent,
+            "memory_max": args.memory_max,
+            "aten_cpu_capability": os.environ.get("ATEN_CPU_CAPABILITY", "auto"),
+            "omp_num_threads": os.environ.get("OMP_NUM_THREADS"),
+        },
         "stages": {},
         "memory_mb": {"rss_at_start": round(rss_start, 1)},
     }
@@ -354,12 +361,55 @@ def _suite_configs(gpu_available: bool) -> list[tuple[str, list[str], str, dict[
     return configs
 
 
+def _constrained_configs(quotas: list[int], memory_max: str | None,
+                         isa: str) -> list[tuple[str, list[str], str, dict[str, str]]]:
+    """A CPU-time budget sweep, for answering "does this fit on smaller
+    hardware" without owning smaller hardware.
+
+    `CPUQuota=50%` means half a core's worth of runtime per wall second, so
+    it scales the machine down continuously rather than in whole cores the
+    way taskset does. Thread count is pinned to the quota: leaving torch at
+    4 threads inside a 1-core budget reproduces exactly the oversubscription
+    that cost 222x in source/extraction/sensor.py's comment.
+
+    `ATEN_CPU_CAPABILITY=default` turns off torch's AVX kernels, which is
+    the one architectural difference from an ARM board that can be
+    approximated here. What cannot: memory bandwidth (~40GB/s here against
+    ~6GB/s on a Pi 4), cache (8MB L3 against 1MB L2 and no L3), and the
+    instruction set itself. These numbers are a scaled-down x86, not a
+    prediction for any board.
+    """
+    configs: list[tuple[str, list[str], str, dict[str, str]]] = []
+    for quota in quotas:
+        threads = max(1, round(quota / 100))
+        prefix = ["systemd-run", "--user", "--scope", "-q", "-p", f"CPUQuota={quota}%"]
+        if memory_max:
+            prefix += ["-p", f"MemoryMax={memory_max}", "-p", "MemorySwapMax=0"]
+        prefix.append("--")
+        configs.append((
+            f"quota-{quota}pct",
+            prefix,
+            "cpu",
+            {"CUDA_VISIBLE_DEVICES": "", "ATEN_CPU_CAPABILITY": isa,
+             "OMP_NUM_THREADS": str(threads), "MKL_NUM_THREADS": str(threads)},
+        ))
+    return configs
+
+
 def run_suite(args: argparse.Namespace) -> list[dict[str, Any]]:
     import torch
     results = []
-    for label, prefix, device, env in _suite_configs(torch.cuda.is_available()):
+    if args.constrained:
+        quotas = [int(q) for q in args.quotas.split(",")]
+        configs = _constrained_configs(quotas, args.memory_max, args.isa)
+        if not shutil.which("systemd-run"):
+            sys.exit("--constrained needs systemd-run (cgroup v2 user delegation)")
+    else:
+        configs = _suite_configs(torch.cuda.is_available())
+    for label, prefix, device, env in configs:
         cmd = prefix + [sys.executable, "-m", "scripts.benchmark",
                         "--label", label, "--device", device,
+                        "--quota-percent", str(label.split("-")[1].rstrip("pct")) if args.constrained else "0",
                         "--output", str(Path(args.work_dir) / f"part-{label}.json"),
                         "--processed-dir", args.processed_dir,
                         "--artifacts-dir", args.artifacts_dir,
@@ -390,6 +440,16 @@ def render_markdown(runs: list[dict[str, Any]]) -> str:
         "",
         "Stages 1-2 run on a generated pcap; stages 3-4 on real rows from the test split.",
         "",
+    ]
+    constrained = any(r.get("constraint", {}).get("cpu_quota_percent") for r in runs)
+    if constrained:
+        isa = runs[0]["constraint"]["aten_cpu_capability"]
+        lines += [
+            f"CPU-time budgets under cgroup v2, torch kernels `{isa}`. A scaled-down x86: "
+            "memory bandwidth, cache and instruction set are this machine's, not a board's.",
+            "",
+        ]
+    lines += [
         "| configuration | extract (flow/s) | transform (flow/s) | score batched (flow/s) "
         "| score 1 flow p50 / p95 (ms) | SHAP p50 / p95 (ms) | model RSS (MB) |",
         "|---|---|---|---|---|---|---|",
@@ -425,22 +485,31 @@ def main() -> None:
     parser.add_argument("--processed-dir", default=str(paths.PROJECT_ROOT / "data" / "processed_w50"))
     parser.add_argument("--artifacts-dir", default=str(paths.MODELS_DIR / "optuna-denoising-50"))
     parser.add_argument("--preprocessing-dir", default=str(paths.ARTIFACTS_DIR / "preprocessing_w50"))
+    parser.add_argument("--constrained", action="store_true",
+                        help="Sweep CPU-time budgets under systemd-run instead of core counts")
+    parser.add_argument("--quotas", default="25,50,100,200,400",
+                        help="CPUQuota percentages for --constrained (100 = one core's worth)")
+    parser.add_argument("--memory-max", default=None, help="e.g. 1G; applied with MemorySwapMax=0")
+    parser.add_argument("--isa", default="default", choices=["default", "avx2", "avx512"],
+                        help="torch CPU kernels; 'default' disables AVX, the closest approximation "
+                             "to an ARM board available on x86")
+    parser.add_argument("--quota-percent", type=int, default=0, help="Recorded, not applied")
     parser.add_argument("--work-dir", default="/tmp/nids-benchmark")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--markdown", type=Path, help="Also write a table here")
     args = parser.parse_args()
 
     Path(args.work_dir).mkdir(parents=True, exist_ok=True)
-    runs = run_suite(args) if args.suite else [run_one(args)]
+    runs = run_suite(args) if (args.suite or args.constrained) else [run_one(args)]
     if not runs:
         sys.exit("every configuration failed")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    payload = runs[0] if len(runs) == 1 and not args.suite else {"runs": runs}
+    payload = runs[0] if len(runs) == 1 and not (args.suite or args.constrained) else {"runs": runs}
     args.output.write_text(json.dumps(payload, indent=2) + "\n")
     print(f"\nwrote {args.output}")
 
-    if args.suite or args.markdown:
+    if args.suite or args.constrained or args.markdown:
         table = render_markdown(runs)
         target = args.markdown or args.output.with_suffix(".md")
         target.write_text(table)

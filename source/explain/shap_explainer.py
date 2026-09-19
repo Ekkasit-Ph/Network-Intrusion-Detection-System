@@ -29,7 +29,6 @@ import shap
 import torch
 
 from source.common.constants import LABEL_COL
-from source.model.dataset import load_split
 from source.model.ensemble import load_scoring_models
 from source.model.train import get_device
 
@@ -41,6 +40,73 @@ from source.model.train import get_device
 # through.
 logging.getLogger("shap").setLevel(logging.WARNING)
 
+
+
+def _sample_benign_background(
+    train_path: Path, feature_cols: list[str], size: int, seed: int,
+) -> np.ndarray:
+    """A uniform random sample of `size` benign training rows, read without
+    holding the split in memory.
+
+    Reading the whole thing and calling `.sample(100)` on it is the obvious
+    way to write this, and it was how this worked. It cost 2,054 MB of
+    resident memory to end up keeping 18 KB -- 4.27M rows by 48 columns
+    through pandas -- and the allocator does not hand that back afterwards,
+    so the process carried the high-water mark for its whole life. It put
+    the serving footprint above 2.5 GB, which is what a Raspberry Pi 4
+    class board has in total, and it is the reason a 1 GB memory budget
+    could not start the service at all.
+
+    Reservoir sampling over Arrow batches draws from exactly the same
+    population -- every benign row has the same probability of ending up in
+    the sample -- with memory bounded by one batch. The rows it picks for a
+    given seed differ from the old code's, so `base_value` moves slightly;
+    that is a different draw from the same distribution, not a different
+    definition of the background.
+    """
+    import pyarrow.parquet as pq
+
+    rng = np.random.default_rng(seed)
+    reservoir = np.empty((size, len(feature_cols)), dtype=np.float32)
+    seen = 0
+
+    # 16k rows per batch: measured on the 4.27M-row training split, this
+    # reads in 0.83s holding 8 MB, against 0.73s holding 332 MB at 64k and
+    # 1.98s at 4k. The knee is sharp and it sits here.
+    for batch in pq.ParquetFile(train_path).iter_batches(
+        batch_size=16_384, columns=feature_cols + [LABEL_COL]
+    ):
+        frame = batch.to_pandas()
+        # The training split is benign-only by construction -- it is the
+        # first of PROJECT.md's non-negotiable constraints -- so this filter
+        # should never drop a row. It stays because the constraint is worth
+        # enforcing at the point of use rather than assuming.
+        benign = frame.loc[frame[LABEL_COL] == 0, feature_cols]
+        if benign.empty:
+            continue
+        rows = benign.to_numpy(dtype=np.float32)
+
+        take = min(size - seen, len(rows))
+        if take > 0:  # still filling the reservoir
+            reservoir[seen:seen + take] = rows[:take]
+            seen += take
+            rows = rows[take:]
+        if len(rows) == 0:
+            continue
+
+        # Standard reservoir step for the rest of this batch: row i of the
+        # stream (0-based) replaces a uniformly chosen slot with probability
+        # size/(i+1), which leaves every row equally likely to survive.
+        indices = seen + np.arange(len(rows))
+        keep = rng.integers(0, indices + 1)
+        chosen = keep < size
+        if chosen.any():
+            reservoir[keep[chosen]] = rows[chosen]
+        seen += len(rows)
+
+    if seen == 0:
+        raise ValueError(f"{train_path} contains no benign rows to build a SHAP background from")
+    return reservoir[:min(size, seen)]
 
 class ShapExplainer:
     def __init__(
@@ -59,10 +125,8 @@ class ShapExplainer:
         # Background set = a sample of scaled *benign* training rows (the
         # model's own definition of "normal" -- what reconstruction error
         # is being measured against).
-        train_df = load_split(processed_dir / "train.parquet", self.feature_cols + [LABEL_COL])
-        benign = train_df[train_df[LABEL_COL] == 0]
-        n = min(background_size, len(benign))
-        background = benign[self.feature_cols].sample(n=n, random_state=seed).to_numpy(dtype=np.float32)
+        background = _sample_benign_background(
+            processed_dir / "train.parquet", self.feature_cols, background_size, seed)
 
         self.explainer = shap.KernelExplainer(self._score_fn, background)
         # `KernelExplainer.explain()` keeps its working state on the
