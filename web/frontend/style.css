@@ -415,3 +415,60 @@ body {
    has no centre axis and the label column can start flush left. */
 .feats[data-expanded="0"] .feat .bar .axis { display: none; }
 .feats-none { margin: 8px 0; font-size: 12px; line-height: 1.5; }
+
+/* ── incidents tab ───────────────────────────────────────────────────── */
+.inc-controls { display: flex; align-items: center; gap: 18px; margin-bottom: 14px; flex-wrap: wrap; }
+.inc-field { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--color-neutral-700); }
+.inc-field span { letter-spacing: .06em; text-transform: uppercase; font-size: 9.5px; }
+.inc-field select {
+  font: inherit; font-size: 12px; padding: 4px 8px; border: 1px solid var(--color-divider);
+  background: var(--color-bg); color: var(--color-text); border-radius: 0;
+}
+
+.inc-summary {
+  display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
+  border: 2px solid var(--color-text); padding: 12px 16px; margin-bottom: 14px;
+}
+.inc-stat { display: flex; flex-direction: column; gap: 2px; }
+.inc-stat .k { font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-neutral-600); }
+.inc-stat b { font-family: var(--font-mono); font-size: 21px; font-variant-numeric: tabular-nums; }
+.inc-arrow { font-size: 19px; color: var(--color-accent); }
+.inc-patterns { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+
+.inc-warn {
+  margin: 0 0 12px; padding: 7px 11px; font-size: 11.5px;
+  border-left: 3px solid var(--color-accent); background: var(--color-accent-100);
+}
+
+.inc-head, .inc-row {
+  display: grid; align-items: center; gap: 12px; padding: 7px 12px;
+  grid-template-columns: 86px minmax(190px, 1fr) 62px 128px minmax(190px, 1.1fr) 74px;
+}
+.inc-head {
+  background: var(--color-neutral-100); border-bottom: 2px solid var(--color-divider);
+  font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-neutral-600);
+}
+.inc-row { border-bottom: 1px solid var(--color-divider); font-size: 12px; cursor: pointer; }
+.inc-row:hover { background: var(--color-accent-100); }
+.inc-row[data-open="1"] { background: var(--color-accent-200); }
+
+/* The pattern badge is the one thing read at a glance, so the three that
+   mean "a host is doing something deliberate" share the accent and the
+   ungrouped one deliberately does not. */
+.inc-tag {
+  display: inline-block; padding: 2px 7px; font-size: 9.5px; letter-spacing: .09em;
+  text-transform: uppercase; font-weight: 700; border: 1px solid currentColor;
+}
+.inc-tag[data-p="scan"], .inc-tag[data-p="flood"], .inc-tag[data-p="repeat"] { color: var(--color-accent); }
+.inc-tag[data-p="single"] { color: var(--color-neutral-600); }
+
+.inc-detail { padding: 10px 12px 14px; border-bottom: 1px solid var(--color-divider); background: var(--color-neutral-100); }
+.inc-detail .lead { font-size: 12px; margin: 0 0 9px; line-height: 1.55; text-wrap: pretty; }
+.inc-flows { display: flex; flex-wrap: wrap; gap: 5px; }
+.inc-flows button {
+  font-family: var(--font-mono); font-size: 10.5px; padding: 3px 7px; cursor: pointer;
+  border: 1px solid var(--color-divider); background: var(--color-bg); color: var(--color-text);
+}
+.inc-flows button:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.inc-flows button[data-worst="1"] { border-color: var(--color-accent); font-weight: 700; }
+.inc-more { font-size: 11px; color: var(--color-neutral-600); align-self: center; }

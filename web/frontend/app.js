@@ -47,6 +47,10 @@ const CHART_MODES = [
 
 const state = {
   tab: "live",
+  incidents: null,
+  incWindow: "1h",
+  incGap: 300,
+  incOpen: null,
   paused: false,
   held: [],
   devMode: false,
@@ -701,12 +705,98 @@ async function pollGaps() {
   state.gaps = res.gaps;
 }
 
+
+/* ── incidents ──────────────────────────────────────────────────────── */
+// The Live tab is a feed; this is a worklist. Everything here is built from
+// GET /incidents, which does the grouping server-side -- see
+// source/alerting/aggregate.py for the three shapes and
+// documentation/alert-aggregation.md for what the reduction is worth
+// (including where it is not worth much).
+
+const PATTERN_TEXT = {
+  scan:   (i) => `One source reaching ${i.distinct_dst_ips} host${i.distinct_dst_ips === 1 ? "" : "s"} on ${i.distinct_dst_ports} port${i.distinct_dst_ports === 1 ? "" : "s"}.`,
+  flood:  (i) => `${i.distinct_src_ips} sources converging on this one destination.`,
+  repeat: (i) => `The same source, destination and port, ${i.n_flows} times over.`,
+  single: () => "Not part of a larger pattern — one flow, on its own.",
+};
+
+function reach(i) {
+  if (i.pattern === "flood") return `${i.distinct_src_ips} sources → 1 target`;
+  if (i.pattern === "single") return "—";
+  return `${i.distinct_dst_ips} host${i.distinct_dst_ips === 1 ? "" : "s"} · ${i.distinct_dst_ports} port${i.distinct_dst_ports === 1 ? "" : "s"}`;
+}
+
+function span(i) {
+  if (!i.first_seen || !i.last_seen) return "—";
+  const seconds = Math.round((new Date(i.last_seen) - new Date(i.first_seen)) / 1000);
+  if (seconds <= 0) return clock(i.first_seen);
+  const unit = seconds < 60 ? `${seconds}s` : seconds < 3600 ? `${Math.round(seconds / 60)}m` : `${(seconds / 3600).toFixed(1)}h`;
+  return `${clock(i.first_seen)} · ${unit}`;
+}
+
+async function pollIncidents() {
+  state.incidents = await api(`/incidents?window=${encodeURIComponent(state.incWindow)}&gap_seconds=${state.incGap}`);
+}
+
+function renderIncidents() {
+  const data = state.incidents;
+  if (!data) return;
+  const { summary, incidents } = data;
+
+  $("#inc-summary").hidden = summary.n_flows === 0;
+  $("#inc-flows").textContent = summary.n_flows.toLocaleString("en-US");
+  $("#inc-count").textContent = summary.n_incidents.toLocaleString("en-US");
+  // A reduction shown when nothing was grouped would read as a result; it
+  // is the absence of one.
+  $("#inc-reduction").textContent =
+    summary.n_flows && summary.n_incidents < summary.n_flows
+      ? `${(summary.reduction * 100).toFixed(1)}%` : "—";
+  $("#inc-patterns").innerHTML = Object.entries(summary.by_pattern)
+    .sort((a, b) => b[1] - a[1])
+    .map(([p, n]) => `<span class="inc-tag" data-p="${esc(p)}">${esc(p)} ${esc(String(n))}</span>`)
+    .join("");
+  $("#inc-truncated").hidden = !data.truncated;
+
+  $("#inc-rows").innerHTML = incidents.map((i, idx) => {
+    const open = state.incOpen === idx;
+    const shown = i.flow_ids.slice(0, 40);
+    const rest = i.flow_ids.length - shown.length;
+    const detail = open ? `
+      <div class="inc-detail">
+        <p class="lead">${esc(PATTERN_TEXT[i.pattern] ? PATTERN_TEXT[i.pattern](i) : "")}
+          The worst flow in it reconstructs at <strong>${esc(i.max_error_ratio.toFixed(2))}×</strong>
+          the threshold. Pick any flow to explain it on the Live tab.</p>
+        <div class="inc-flows">
+          ${shown.map((fid) => `<button data-explain="${esc(fid)}" data-worst="${fid === i.worst_flow_id ? 1 : 0}">${esc(fid)}</button>`).join("")}
+          ${rest > 0 ? `<span class="inc-more">+${esc(String(rest))} more</span>` : ""}
+        </div>
+      </div>` : "";
+    return `
+      <div class="inc-row" data-inc="${esc(String(idx))}" data-open="${open ? 1 : 0}">
+        <span><span class="inc-tag" data-p="${esc(i.pattern)}">${esc(i.pattern)}</span></span>
+        <span class="mono trunc" title="${esc(i.key)}">${esc(i.key)}</span>
+        <span class="num r">${esc(String(i.n_flows))}</span>
+        <span class="mono muted" style="font-size:11px">${esc(span(i))}</span>
+        <span class="muted" style="font-size:11px">${esc(reach(i))}</span>
+        <span class="num r">${esc(i.max_error_ratio.toFixed(1))}×</span>
+      </div>${detail}`;
+  }).join("");
+
+  const empty = $("#inc-empty");
+  empty.hidden = incidents.length > 0;
+  if (!incidents.length) {
+    empty.textContent = "No anomalous flows in this window. Widen it, or feed the stream with " +
+      "python -m web.backend.replay_demo.";
+  }
+}
+
 async function tick() {
   try {
     await pollAlerts();
     await pollStats();
     if (state.tab === "trend" && !state.range) await pollTrend();
     if (state.tab === "gaps") await pollGaps();
+    if (state.tab === "incidents") await pollIncidents();
   } catch (err) {
     state.connected = false;
     console.error("poll failed:", err);
@@ -716,20 +806,25 @@ async function tick() {
   if (state.tab === "live") { renderSpotlight(); renderRows(); }
   if (state.tab === "trend") { renderTrend(); renderInsights(); }
   if (state.tab === "gaps") renderGaps();
+  if (state.tab === "incidents") renderIncidents();
 }
 
 /* ── wiring ─────────────────────────────────────────────────────────── */
 function setTab(tab) {
   state.tab = tab;
-  ["live", "trend", "gaps"].forEach((t) => {
+  ["live", "trend", "incidents", "gaps"].forEach((t) => {
     $(`#tab-${t}`).setAttribute("aria-selected", String(t === tab));
     $(`#view-${t}`).hidden = t !== tab;
   });
-  $("#tab-hint").textContent = tab === "live"
-    ? "Click any flow to explain it"
-    : tab === "trend" ? "Silent buckets are drawn as gaps, never as 0%" : "Only this model sees these";
+  $("#tab-hint").textContent = {
+    live: "Click any flow to explain it",
+    trend: "Silent buckets are drawn as gaps, never as 0%",
+    incidents: "Every anomalous flow is in exactly one incident",
+    gaps: "Only this model sees these",
+  }[tab] || "";
   if (tab === "trend") pollTrend().then(() => { renderTrend(); renderInsights(); }).catch(console.error);
   if (tab === "gaps") pollGaps().then(renderGaps).catch(console.error);
+  if (tab === "incidents") pollIncidents().then(renderIncidents).catch(console.error);
 }
 
 function flowById(id) {
@@ -775,7 +870,7 @@ function init() {
     renderRows();
     if (state.shap) renderShap();
   });
-  ["live", "trend", "gaps"].forEach((t) => $(`#tab-${t}`).addEventListener("click", () => setTab(t)));
+  ["live", "trend", "incidents", "gaps"].forEach((t) => $(`#tab-${t}`).addEventListener("click", () => setTab(t)));
 
   $("#only-anom").addEventListener("change", (e) => { state.onlyAnom = e.target.checked; state.cursor = -1; renderRows(); });
   $("#search").addEventListener("input", (e) => { state.search = e.target.value; state.cursor = -1; renderRows(); });
@@ -857,6 +952,29 @@ function init() {
     if (!row) return;
     setTab("live");
     explainById(row.dataset.flow);
+  });
+
+  const reloadIncidents = () => {
+    state.incOpen = null;
+    pollIncidents().then(renderIncidents).catch(console.error);
+  };
+  $("#inc-window").addEventListener("change", (e) => { state.incWindow = e.target.value; reloadIncidents(); });
+  $("#inc-gap").addEventListener("change", (e) => { state.incGap = Number(e.target.value); reloadIncidents(); });
+  $("#inc-rows").addEventListener("click", (e) => {
+    // The flow buttons live inside an expanded row, so they have to be
+    // checked first or the row's own handler would collapse the thing the
+    // click was aimed at.
+    const pick = e.target.closest("[data-explain]");
+    if (pick) {
+      setTab("live");
+      explainById(pick.dataset.explain);
+      return;
+    }
+    const row = e.target.closest(".inc-row");
+    if (!row) return;
+    const idx = Number(row.dataset.inc);
+    state.incOpen = state.incOpen === idx ? null : idx;
+    renderIncidents();
   });
 
   $("#gap-only").addEventListener("change", (e) => { state.gapOnly = e.target.checked; renderGaps(); });

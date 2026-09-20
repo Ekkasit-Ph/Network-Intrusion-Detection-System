@@ -108,7 +108,7 @@
 
 | งาน | ทำไมถึงเพิ่ม | สถานะ |
 |---|---|---|
-| **alert aggregation** | คำนวณแล้วพบว่า FPR 4.97% = 9,100 การแจ้งเตือน/วัน ที่ 100k flow/วัน ซึ่งคนดูไม่ไหว | ✅ [alert-aggregation.md](alert-aggregation.md) · ยังไม่มีหน้าจอบนแดชบอร์ด |
+| **alert aggregation** | คำนวณแล้วพบว่า FPR 4.97% = 9,100 การแจ้งเตือน/วัน ที่ 100k flow/วัน ซึ่งคนดูไม่ไหว | ✅ [alert-aggregation.md](alert-aggregation.md) · มีแท็บ Incidents บนแดชบอร์ดแล้ว |
 
 ## สิ่งที่ตัดทิ้ง และเหตุผล
 

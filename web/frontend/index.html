@@ -26,6 +26,7 @@
 <nav class="tabs" role="tablist">
   <button role="tab" id="tab-live"  aria-selected="true"  aria-controls="view-live">Live</button>
   <button role="tab" id="tab-trend" aria-selected="false" aria-controls="view-trend">Trend</button>
+  <button role="tab" id="tab-incidents" aria-selected="false" aria-controls="view-incidents">Incidents</button>
   <button role="tab" id="tab-gaps"  aria-selected="false" aria-controls="view-gaps">Firewall gaps</button>
   <span class="tab-hint" id="tab-hint">Click any flow to explain it</span>
 </nav>
@@ -241,6 +242,56 @@
 </div>
 
 <!-- ── GAPS ─────────────────────────────────────────────────────────── -->
+<div class="pad" id="view-incidents" role="tabpanel" aria-labelledby="tab-incidents" hidden>
+  <p class="gaps-intro">
+    The Live tab answers <em>what is arriving</em>. This answers <em>what is going on</em>, which is a
+    shorter list. A port sweep is one decision and four hundred flows; grouping them back together is
+    the difference between a console someone reads and one they stop reading.
+    <strong>Every anomalous flow appears in exactly one incident</strong> — nothing is dropped, nothing
+    counted twice.
+  </p>
+  <div class="inc-controls">
+    <label class="inc-field"><span>Window</span>
+      <select id="inc-window">
+        <option value="15m">15 minutes</option>
+        <option value="1h" selected>1 hour</option>
+        <option value="6h">6 hours</option>
+        <option value="24h">24 hours</option>
+      </select>
+    </label>
+    <label class="inc-field"><span>Split after</span>
+      <select id="inc-gap">
+        <option value="60">1 minute idle</option>
+        <option value="300" selected>5 minutes idle</option>
+        <option value="900">15 minutes idle</option>
+        <option value="3600">1 hour idle</option>
+      </select>
+    </label>
+    <span class="dim" style="font-size:11px">The same host active twice with a quiet spell between
+      is two incidents, not one long one</span>
+  </div>
+
+  <div class="inc-summary" id="inc-summary" hidden>
+    <div class="inc-stat"><span class="k">Anomalous flows</span><b id="inc-flows">0</b></div>
+    <div class="inc-arrow" aria-hidden="true">→</div>
+    <div class="inc-stat"><span class="k">Incidents to read</span><b id="inc-count">0</b></div>
+    <div class="inc-stat"><span class="k">Fewer rows</span><b id="inc-reduction">—</b></div>
+    <div class="inc-patterns" id="inc-patterns"></div>
+  </div>
+  <p class="inc-warn" id="inc-truncated" hidden>
+    The window hit the read limit, so these counts describe only part of it.
+  </p>
+
+  <div class="gaps-table">
+    <div class="inc-head">
+      <span>Pattern</span><span>Who</span><span class="r" style="text-align:right">Flows</span>
+      <span>Span</span><span>Reach</span><span class="r" style="text-align:right">Worst</span>
+    </div>
+    <div id="inc-rows"></div>
+  </div>
+  <div class="empty" id="inc-empty" hidden></div>
+</div>
+
 <div class="pad" id="view-gaps" role="tabpanel" aria-labelledby="tab-gaps" hidden>
   <p class="gaps-intro">
     Every row here is a flow the model flagged as anomalous — error above threshold.
