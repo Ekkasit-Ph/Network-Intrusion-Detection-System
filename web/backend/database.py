@@ -105,6 +105,25 @@ def get_flows_between(conn: sqlite3.Connection, since: str, until: str,
     return [dict(r) for r in rows]
 
 
+def get_anomalous_flows_since(conn: sqlite3.Connection, since: str,
+                              limit: int = 20000) -> list[dict[str, Any]]:
+    """Every anomalous flow in a window, oldest first, for aggregation.
+
+    Deliberately not capped the way the dashboard's other reads are. The
+    aggregator's whole job is turning a burst into one line, and a burst
+    truncated at 200 rows would be aggregated into a report of a burst that
+    was 200 flows long. The limit that remains is a guard against an
+    unbounded query, not a page size, which is why it is two orders of
+    magnitude larger and why exceeding it is worth telling the caller about.
+    """
+    rows = conn.execute(
+        _FLOW_SELECT + " WHERE f.is_anomaly = 1 AND f.timestamp >= ?"
+        " ORDER BY f.timestamp ASC, f.rowid ASC LIMIT ?",
+        (since, limit),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
 def get_recent_flows(conn: sqlite3.Connection, since: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
     """Newest-first, always. `since` turns this into a forward cursor: it
     returns the *oldest* `limit` flows after that timestamp, so a caller

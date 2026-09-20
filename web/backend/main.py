@@ -29,7 +29,7 @@ from fastapi.staticfiles import StaticFiles
 from source.common import paths
 from source.explain.shap_explainer import ShapExplainer
 from web.backend import database
-from web.backend.routers import alerts, explain, firewall_gaps, flows, meta, stats
+from web.backend.routers import alerts, explain, firewall_gaps, flows, incidents, meta, stats
 from web.database.initialize_database import initialize_database
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -70,6 +70,7 @@ app.include_router(explain.router)
 app.include_router(firewall_gaps.router)
 app.include_router(stats.router)
 app.include_router(meta.router)
+app.include_router(incidents.router)
 
 
 @app.get("/health")
