@@ -47,10 +47,29 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Iterable, Sequence
 
-# A source touching three destinations could be a laptop opening tabs; the
-# shape only becomes a scan when it keeps going. Three is low enough to
-# catch a slow scan and high enough that ordinary fan-out does not trip it.
+import numpy as np
+
+# An absolute floor, not the test. Three is the smallest count where "many"
+# is meaningful at all; whether a given three is worth reporting is decided
+# by _outlier_floor below, against the rest of the window.
 DEFAULT_MIN_DISTINCT = 3
+# How far above the typical key a count must sit to be called a pattern.
+# Robust z (median + k x scaled MAD), so one enormous scan does not raise
+# the bar for everything else the way a mean and standard deviation would.
+#
+# 4.0 from measurement, not taste. Over 25 windows of 400 structureless
+# flows, and against three planted patterns:
+#
+#     z    false groups/window    finds a 20-flow sweep
+#    3.0          0.80                  25/25
+#    4.0          0.28                  25/25
+#    5.0          0.04                   9/25
+#
+# 5.0 nearly clears the false groups and loses the small sweep two times in
+# three, which is the wrong trade for a detector: a spurious row costs a
+# glance, a missed one costs the thing this system is for. 4.0 is the knee
+# -- most of the reduction, none of the sensitivity.
+DEFAULT_OUTLIER_Z = 4.0
 # Flows more than this far apart are different incidents even for the same
 # key. Five minutes is longer than any single burst and shorter than the
 # gap between two deliberate attempts.
@@ -138,6 +157,44 @@ def _sessionise(flows: Sequence[dict[str, Any]], gap_seconds: int) -> list[list[
     return sessions
 
 
+def _outlier_floor(counts: Sequence[int], z: float, hard_floor: int) -> float:
+    """The count a key has to beat to be a pattern rather than arithmetic.
+
+    Spread flows over a fixed set of hosts and every host ends up contacted
+    by many sources, with no attacker anywhere: 500 flows across 30
+    destinations gives each about seventeen, from about seventeen different
+    sources. A fixed `>= 3 distinct` test calls all thirty of those a
+    fan-in. Measured on uniformly random flows with no structure at all,
+    that test grouped 100% of them and left nothing isolated -- it reported
+    the pigeonhole principle as a detection.
+
+    So the bar comes from the window itself: median plus z scaled MADs.
+    Median and MAD rather than mean and standard deviation because one real
+    scan of 100,000 flows would drag a mean up far enough to hide
+    everything else behind it.
+
+    The reference is only those keys that already clear `hard_floor`. A
+    scan does not just add one big key, it adds a destination per host it
+    touched, each with a single source -- 250 of them in the test that
+    caught this. Counting those in dragged the median to 1, which dropped
+    the bar to the hard floor and let every piece of background noise
+    through as a fan-in. The population to compare against is keys that
+    could plausibly be a pattern, not every key that exists.
+
+    With too few such keys to say anything about spread, the hard floor
+    stands alone rather than a bar inferred from three numbers.
+    """
+    plausible = [c for c in counts if c >= hard_floor]
+    if len(plausible) < 5:
+        return float(hard_floor)
+    values = np.asarray(plausible, dtype=float)
+    median = float(np.median(values))
+    mad = float(np.median(np.abs(values - median)))
+    # 1.4826 puts MAD on a standard-deviation scale for normal data, so `z`
+    # means what a reader expects it to mean.
+    return max(float(hard_floor), median + z * 1.4826 * mad)
+
+
 def _build(pattern: str, key: str, flows: Sequence[dict[str, Any]]) -> Incident:
     stamps = [t for t in (_parse_time(f.get("timestamp")) for f in flows) if t]
     worst = max(flows, key=_error_ratio)
@@ -156,8 +213,9 @@ def _build(pattern: str, key: str, flows: Sequence[dict[str, Any]]) -> Incident:
 
 
 def _candidates(flows: Sequence[dict[str, Any]], min_distinct: int, min_repeats: int,
-                gap_seconds: int) -> list[Incident]:
-    """Every grouping that could be made, before deciding which to keep."""
+                gap_seconds: int, outlier_z: float) -> list[Incident]:
+    """Every grouping that clears the window's own bar, before deciding
+    which to keep."""
     by_src: dict[Any, list[dict[str, Any]]] = defaultdict(list)
     by_dst: dict[Any, list[dict[str, Any]]] = defaultdict(list)
     by_tuple: dict[tuple, list[dict[str, Any]]] = defaultdict(list)
@@ -166,23 +224,34 @@ def _candidates(flows: Sequence[dict[str, Any]], min_distinct: int, min_repeats:
         by_dst[flow.get("dst_ip")].append(flow)
         by_tuple[(flow.get("src_ip"), flow.get("dst_ip"), flow.get("dst_port"))].append(flow)
 
+    # Sessions first, then the bar, so a host active in two bursts is judged
+    # on each burst rather than on the day's total.
+    out_sessions = [(src, sess) for src, g in by_src.items()
+                    for sess in _sessionise(g, gap_seconds)]
+    in_sessions = [(dst, sess) for dst, g in by_dst.items()
+                   for sess in _sessionise(g, gap_seconds)]
+
+    def reach_out(session: Sequence[dict[str, Any]]) -> int:
+        return max(len({f.get("dst_ip") for f in session}),
+                   len({f.get("dst_port") for f in session}))
+
+    out_floor = _outlier_floor([reach_out(s) for _, s in out_sessions], outlier_z, min_distinct)
+    in_floor = _outlier_floor([len({f.get("src_ip") for f in s}) for _, s in in_sessions],
+                              outlier_z, min_distinct)
+
     found: list[Incident] = []
-    for src, group in by_src.items():
-        for session in _sessionise(group, gap_seconds):
-            incident = _build(PATTERN_FAN_OUT, str(src), session)
-            if max(incident.distinct_dst_ips, incident.distinct_dst_ports) >= min_distinct:
-                found.append(incident)
-    for dst, group in by_dst.items():
-        for session in _sessionise(group, gap_seconds):
-            incident = _build(PATTERN_FAN_IN, str(dst), session)
-            if incident.distinct_src_ips >= min_distinct:
-                found.append(incident)
+    for src, session in out_sessions:
+        if reach_out(session) >= out_floor:
+            found.append(_build(PATTERN_FAN_OUT, str(src), session))
+    for dst, session in in_sessions:
+        if len({f.get("src_ip") for f in session}) >= in_floor:
+            found.append(_build(PATTERN_FAN_IN, str(dst), session))
     for key, group in by_tuple.items():
         for session in _sessionise(group, gap_seconds):
             if len(session) >= min_repeats:
                 src, dst, port = key
                 found.append(_build(PATTERN_REPEATED, f"{src} -> {dst}:{port}", session))
-    return found
+    return found, out_floor, in_floor
 
 
 def group_incidents(
@@ -190,6 +259,7 @@ def group_incidents(
     min_distinct: int = DEFAULT_MIN_DISTINCT,
     min_repeats: int = DEFAULT_MIN_REPEATS,
     gap_seconds: int = DEFAULT_GAP_SECONDS,
+    outlier_z: float = DEFAULT_OUTLIER_Z,
 ) -> list[Incident]:
     """Anomalous flows in, incidents out, every flow in exactly one.
 
@@ -210,7 +280,8 @@ def group_incidents(
     if not flows:
         return []
 
-    candidates = _candidates(flows, min_distinct, min_repeats, gap_seconds)
+    candidates, out_floor, in_floor = _candidates(
+        flows, min_distinct, min_repeats, gap_seconds, outlier_z)
     candidates.sort(key=lambda i: (-i.n_flows, -i.max_error_ratio, i.pattern, i.key))
 
     claimed: set[str] = set()
@@ -224,10 +295,13 @@ def group_incidents(
         if len(remaining) < 2:
             continue
         rebuilt = _build(candidate.pattern, candidate.key, [by_id[fid] for fid in remaining])
+        # Re-checked against the same bar, not the bare floor: a group that
+        # lost most of its members to a stronger one is no longer the
+        # outlier it was measured as.
         if candidate.pattern == PATTERN_FAN_OUT and max(
-                rebuilt.distinct_dst_ips, rebuilt.distinct_dst_ports) < min_distinct:
+                rebuilt.distinct_dst_ips, rebuilt.distinct_dst_ports) < out_floor:
             continue
-        if candidate.pattern == PATTERN_FAN_IN and rebuilt.distinct_src_ips < min_distinct:
+        if candidate.pattern == PATTERN_FAN_IN and rebuilt.distinct_src_ips < in_floor:
             continue
         if candidate.pattern == PATTERN_REPEATED and rebuilt.n_flows < min_repeats:
             continue

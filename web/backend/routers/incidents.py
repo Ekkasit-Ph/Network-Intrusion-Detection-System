@@ -29,6 +29,11 @@ def get_incidents(
     window: str = Query(default="1h", description="One of 15m, 1h, 6h, 24h"),
     gap_seconds: int = Query(default=aggregate.DEFAULT_GAP_SECONDS, ge=10, le=86400),
     min_distinct: int = Query(default=aggregate.DEFAULT_MIN_DISTINCT, ge=2, le=1000),
+    outlier_z: float = Query(default=aggregate.DEFAULT_OUTLIER_Z, ge=0.0, le=20.0,
+                             description="How far above the typical key a count must sit. "
+                                         "0 disables the test and reports every group that "
+                                         "clears min_distinct -- which on structureless "
+                                         "traffic is nearly all of them."),
     limit: int = Query(default=20000, ge=100, le=200000),
 ) -> dict:
     if window not in _WINDOWS:
@@ -40,7 +45,7 @@ def get_incidents(
         flows = database.get_anomalous_flows_since(conn, since=since, limit=limit)
 
     incidents = aggregate.group_incidents(
-        flows, min_distinct=min_distinct, gap_seconds=gap_seconds)
+        flows, min_distinct=min_distinct, gap_seconds=gap_seconds, outlier_z=outlier_z)
     summary = aggregate.summarise(incidents, len(flows))
     return {
         "window": window,

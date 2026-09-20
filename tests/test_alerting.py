@@ -161,3 +161,94 @@ def test_grouping_does_not_depend_on_input_order():
     backward = group_incidents(list(reversed(flows)))
     assert [(i.pattern, i.key, i.n_flows) for i in forward] == \
            [(i.pattern, i.key, i.n_flows) for i in backward]
+
+
+# ── the bar a group has to clear ──────────────────────────────────────────
+
+def _noise(n, seed=0, n_src=50, n_dst=30):
+    """Flows with no structure at all: source, destination and port drawn
+    independently. Nothing here is an attack and nothing should group."""
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    return [
+        flow(f"n{seed}_{i}",
+             src=f"192.168.1.{rng.integers(10, 10 + n_src)}",
+             dst=f"10.0.0.{rng.integers(1, 1 + n_dst)}",
+             port=int(rng.choice([80, 443, 22, 53, 8080])),
+             offset=i)
+        for i in range(n)
+    ]
+
+
+def _sweep(n, offset=0):
+    return [flow(f"s{i}", src="192.168.1.99", dst=f"10.0.9.{i % 250 + 1}",
+                 port=80, offset=offset + i, error=0.02) for i in range(n)]
+
+
+def _converge(n, offset=0):
+    return [flow(f"d{i}", src=f"172.16.{i // 250}.{i % 250 + 1}", dst="10.0.2.11",
+                 port=443, offset=offset + i, error=0.03) for i in range(n)]
+
+
+def test_structureless_traffic_almost_never_groups():
+    """The regression the bar exists for.
+
+    Spread flows over a fixed set of hosts and every host is reached by many
+    sources with no attacker anywhere -- 500 flows over 30 destinations give
+    each about seventeen, from seventeen different sources. A fixed
+    `>= 3 distinct` test called all thirty of those a fan-in: on uniformly
+    random flows it grouped 100% of them and left nothing isolated, which is
+    the pigeonhole principle reported as a detection.
+
+    Asserted over many windows rather than one, and as a rate rather than
+    zero, because that is what the bar actually promises. At the chosen
+    z it is 0.28 spurious groups per window; a test demanding zero would
+    pass or fail on the seed and teach nothing.
+    """
+    counts = []
+    for seed in range(25):
+        incidents = group_incidents(_noise(400, seed=seed), gap_seconds=300)
+        counts.append(sum(1 for i in incidents if i.pattern != PATTERN_ISOLATED))
+    assert sum(counts) / len(counts) < 1.0
+    assert sum(1 for c in counts if c == 0) >= len(counts) // 2
+
+
+def _finds(planted, pattern, seeds=8):
+    """How many of `seeds` background draws the planted pattern survives.
+    One seed would be testing the seed."""
+    hits = 0
+    for seed in range(seeds):
+        incidents = group_incidents(_noise(400, seed=seed) + planted, gap_seconds=300)
+        hits += any(i.pattern == pattern and i.n_flows == len(planted) for i in incidents)
+    return hits, seeds
+
+
+def test_a_sweep_hidden_in_noise_is_found():
+    assert _finds(_sweep(150), PATTERN_FAN_OUT) == (8, 8)
+
+
+def test_convergence_hidden_in_noise_is_found():
+    assert _finds(_converge(300), PATTERN_FAN_IN) == (8, 8)
+
+
+def test_one_pattern_does_not_open_the_door_on_the_other_axis():
+    """A sweep adds a destination per host it touched, each with one source.
+    Counting those into the fan-in reference dragged its median to 1, which
+    dropped that bar to the floor and let all the background through as
+    fan-ins -- 30 of them, from noise, next to the one real sweep."""
+    for seed in range(8):
+        incidents = group_incidents(
+            _noise(400, seed=seed) + _sweep(150) + _converge(300, offset=20_000),
+            gap_seconds=300)
+        found = {i.pattern for i in incidents if i.pattern != PATTERN_ISOLATED}
+        assert found == {PATTERN_FAN_IN, PATTERN_FAN_OUT}
+        # and the real ones are the big ones, not a pile of background
+        assert max(i.n_flows for i in incidents if i.pattern == PATTERN_FAN_OUT) == 150
+        assert max(i.n_flows for i in incidents if i.pattern == PATTERN_FAN_IN) == 300
+
+
+def test_a_small_sweep_still_stands_out():
+    """Twenty flows is nothing next to four hundred of background, but one
+    host reaching twenty destinations when the typical host reaches a
+    handful is still the shape worth surfacing."""
+    assert _finds(_sweep(20), PATTERN_FAN_OUT) == (8, 8)
