@@ -234,3 +234,37 @@ def test_topologys_scenario_flag_offers_exactly_those_scenarios():
     source = inspect.getsource(topology.main)
     for name in attack_scripts.SCENARIOS:
         assert f'"{name}"' in source, f"--scenario cannot select {name}"
+
+
+# ── the sensor's vantage point ────────────────────────────────────────────
+
+def test_sensor_is_last_so_the_mirror_can_find_its_port():
+    """`mirror_to_sensor` takes the switch's last interface as the sensor's.
+    That holds only because build() adds the sensor after every other host,
+    so the ordering is load-bearing rather than incidental."""
+    from network_simulation.topology import HOSTS, SENSOR
+
+    assert SENSOR[0] not in [name for name, _ in HOSTS]
+    assert SENSOR[0] == "nids1"
+
+
+def test_sensor_sits_on_a_subnet_of_its_own():
+    """A monitoring host that shares a segment with what it monitors puts
+    its own traffic into the capture. Separate /24, and one that no other
+    host is on."""
+    from network_simulation.topology import HOSTS, SENSOR, SUBNETS
+
+    sensor_net = SENSOR[1].rsplit(".", 1)[0]
+    for _, ip in HOSTS:
+        assert ip.rsplit(".", 1)[0] != sensor_net
+    assert f"{sensor_net}.0/24" in SUBNETS
+
+
+def test_every_subnet_is_routable_from_every_host():
+    """Three segments on one switch, so each host needs a route to the
+    others; Mininet only configures the host's own /24. The sensor's subnet
+    has to be in there too or replies to it would not come back."""
+    from network_simulation.topology import HOSTS, SENSOR, SUBNETS
+
+    for _, ip in [*HOSTS, SENSOR]:
+        assert f"{ip.rsplit('.', 1)[0]}.0/24" in SUBNETS
