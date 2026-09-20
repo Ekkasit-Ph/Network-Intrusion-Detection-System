@@ -14,15 +14,23 @@
 
 Pop!_OS อัปเดตเคอร์เนลถี่ **VirtualBox จะพังกลางเทอมแน่นอน** — ใช้ KVM
 
-## ทำไมต้อง Ubuntu 20.04 ไม่ใช่รุ่นใหม่กว่า
+## ทำไมต้อง Ubuntu 22.04 — และทำไมไม่ใช่ 20.04
 
-**Ryu ต้องใช้ Python ≤ 3.9** (ติดที่ `eventlet`)
+ใน VM ต้องมี Python **สองรุ่น** เพราะสองฝั่งต้องการคนละอย่าง
 
-| Ubuntu | Python | Ryu |
+| ต้องการ | เงื่อนไข | เหตุผล |
 |---|---|---|
-| **20.04 LTS** | **3.8** | ✅ |
-| 22.04 LTS | 3.10 | ❌ |
-| 24.04 LTS | 3.12 | ❌ (เหมือนเครื่องหลัก) |
+| **Ryu** | Python ≤ 3.9 | `eventlet` พังบน 3.10+ |
+| **`requirements.txt` ของโปรเจกต์** | Python ≥ 3.9 | numpy 1.26, pandas 2.2, scikit-learn 1.4, scipy 1.12 ทุกตัวกำหนด `>=3.9` |
+
+| Ubuntu | Python ของระบบ | ใช้กับโปรเจกต์ | หา Python สำหรับ Ryu ได้ไหม |
+|---|---|---|---|
+| 20.04 | 3.8 | ❌ **ต่ำเกินไป** | ❌ deadsnakes **เลิกรองรับ focal แล้ว** |
+| **22.04** | **3.10** | ✅ | ✅ **`python3.9` จาก deadsnakes** |
+| 24.04 | 3.12 | ✅ | ❌ deadsnakes/noble ไม่มี 3.9 แล้ว |
+
+> **22.04 เป็นรุ่นเดียวที่ทั้งสองฝั่งลงตัว** — ระบบให้ 3.10 สำหรับโปรเจกต์
+> และ deadsnakes ให้ 3.9 สำหรับ Ryu
 
 ---
 
@@ -87,10 +95,15 @@ sudo mount --bind /media/ekkasit/Games/VMs /var/lib/libvirt/images
 ตรวจว่าใช้ได้:
 
 ```bash
-findmnt /var/lib/libvirt/images          # ต้องเห็น source เป็น /dev/nvme1n1p1
-df -h /var/lib/libvirt/images            # ต้องเห็นว่าง ~419G ไม่ใช่ 250G
-sudo -u libvirt-qemu test -w /var/lib/libvirt/images && echo "libvirt-qemu เขียนได้"
+findmnt /var/lib/libvirt/images   # source ต้องเป็น /dev/nvme1n1p1
+df -h /var/lib/libvirt/images     # ต้องเห็นว่าง ~419G ไม่ใช่ 250G
+sudo touch /var/lib/libvirt/images/.probe && sudo rm /var/lib/libvirt/images/.probe \
+  && echo "เขียนได้"
 ```
+
+> **อย่าตรวจด้วย `sudo -u libvirt-qemu test -w`** — จะได้ผลว่าเขียนไม่ได้ ซึ่ง**ถูกต้องแล้ว**
+> ที่เก็บนี้เป็น `0711 root:root` โดยออกแบบ: `libvirtd` (รันเป็น root) เป็นคนสร้างไฟล์อิมเมจ
+> แล้วค่อยเปลี่ยนเจ้าของให้ `libvirt-qemu` ซึ่งต้องการแค่สิทธิ์**เดินผ่าน** ไม่ใช่สิทธิ์สร้างไฟล์
 
 > **ทางเลือกที่ง่ายกว่าแต่สะอาดน้อยกว่า** — แก้ `/etc/libvirt/qemu.conf` ให้ `user = "ekkasit"`
 > แล้ว qemu จะเดินผ่าน ACL ได้ แต่เปลี่ยนรูปแบบความปลอดภัยของ VM **ทุกตัว** และอาจยังติด AppArmor
@@ -104,7 +117,7 @@ sudo -u libvirt-qemu test -w /var/lib/libvirt/images && echo "libvirt-qemu เ�
 ```bash
 # เก็บ ISO ไว้บนดิสก์ลูกที่สองด้วย จะได้ไม่กินดิสก์หลัก
 mkdir -p /media/ekkasit/Games/VMs/iso && cd /media/ekkasit/Games/VMs/iso
-wget https://releases.ubuntu.com/20.04/ubuntu-20.04.6-live-server-amd64.iso
+wget https://releases.ubuntu.com/22.04/ubuntu-22.04.5-live-server-amd64.iso
 ```
 
 ใช้ **live-server** ไม่ใช่ desktop — เบากว่ามาก และงานนี้ใช้แต่บรรทัดคำสั่ง (~1.4 GB)
@@ -117,14 +130,18 @@ virt-install \
   --memory 6144 \
   --vcpus 4 \
   --disk path=/var/lib/libvirt/images/mininet-nids.qcow2,size=60,format=qcow2 \
-  --cdrom /media/ekkasit/Games/VMs/iso/ubuntu-20.04.6-live-server-amd64.iso \
-  --os-variant ubuntu20.04 \
+  --cdrom /media/ekkasit/Games/VMs/iso/ubuntu-22.04.5-live-server-amd64.iso \
+  --os-variant ubuntu22.04 \
   --network network=default \
   --graphics spice \
   --noautoconsole
 
 virt-manager      # เปิดหน้าต่างแล้วดับเบิลคลิก mininet-nids เพื่อติดตั้งต่อ
 ```
+
+> ถ้า `--os-variant ubuntu22.04` ขึ้นว่าไม่รู้จัก ให้ดูรายชื่อที่มีด้วย
+> `osinfo-query os | grep ubuntu` แล้วเลือกตัวที่ใกล้เคียง หรือใช้ `--os-variant generic`
+> (มีผลแค่ค่าปรับแต่งเริ่มต้น ไม่กระทบว่า VM จะทำงานได้หรือไม่)
 
 **ทรัพยากรที่ให้:** RAM 6 GB · 4 vCPU · **ดิสก์ 60 GB** (ให้เผื่อได้เพราะมีที่ว่าง 419 GB)
 เครื่องหลักมี 15 GB — เหลือ 9 GB ให้ระบบหลัก พอสบาย แต่**ปิดเบราว์เซอร์ตอนรัน VM**
@@ -154,44 +171,56 @@ sudo mn --test pingall
 
 ต้องเห็น `*** Results: 0% dropped` ถ้าเห็นแล้วแปลว่า Mininet กับ Open vSwitch พร้อม
 
-## ขั้นที่ 5 — ลง Ryu (แยก venv เพราะต้องกดเวอร์ชัน)
+## ขั้นที่ 5 — ลง Ryu บน Python 3.9 แยกต่างหาก
+
+Python ของระบบคือ 3.10 ซึ่ง **Ryu ใช้ไม่ได้** ต้องเอา 3.9 มาจาก deadsnakes
 
 ```bash
-python3 -m venv ~/ryu-venv
+sudo add-apt-repository -y ppa:deadsnakes/ppa
+sudo apt update
+sudo apt install -y python3.9 python3.9-venv python3.9-dev
+
+python3.9 -m venv ~/ryu-venv
 ~/ryu-venv/bin/pip install --upgrade pip
 
 # eventlet รุ่นใหม่ตัด ALREADY_HANDLED ออก ทำให้ Ryu พัง -- ต้องกดเวอร์ชัน
 ~/ryu-venv/bin/pip install 'eventlet==0.30.2' ryu
 
+~/ryu-venv/bin/python --version         # ต้องขึ้น Python 3.9.x
 ~/ryu-venv/bin/ryu-manager --version    # ต้องขึ้นเลขเวอร์ชัน ไม่ใช่ traceback
 ```
 
-⚠️ ถ้าขั้นนี้ error เรื่อง `ALREADY_HANDLED` แปลว่า eventlet ไม่ได้ถูกกดเวอร์ชัน ให้ลงใหม่
+⚠️ ถ้า error เรื่อง `ALREADY_HANDLED` แปลว่า eventlet ไม่ได้ถูกกดเวอร์ชัน ให้ลงใหม่
+⚠️ **ห้ามใช้ `python3 -m venv` เฉย ๆ** — จะได้ 3.10 แล้ว Ryu จะพัง
 
 ## ขั้นที่ 6 — เอาโปรเจกต์เข้า VM
 
+**รีโปเป็น private** — `git clone` ใน VM จะติดการยืนยันตัวตน ใช้ `rsync` จากเครื่องหลักง่ายกว่า
+และได้ไฟล์ที่ไม่ได้อยู่ใน git มาพร้อมกันเลย
+
 ```bash
-# ใน VM
-git clone https://github.com/Ekkasit-Ph/Network-Intrusion-Detection-System.git
-cd Network-Intrusion-Detection-System
-python3 -m venv .venv
+# รันบนเครื่องหลัก -- ส่งทั้งโค้ดและข้อมูลที่จำเป็นในคำสั่งเดียว
+rsync -av --info=progress2 \
+  --exclude '.venv' --exclude '.git' --exclude '__pycache__' \
+  --exclude 'data/raw' --exclude 'data/processed' \
+  --exclude 'data/processed_experiments' \
+  --exclude 'data/processed_w50/val.parquet' \
+  --exclude 'data/processed_w50/test.parquet' \
+  --exclude '*.db' \
+  ~/Workspace/Project/Network-Intrusion-Detection-System/ \
+  <user>@<ip-ของ-vm>:~/nids/
+```
+
+ส่งไปประมาณ **80 MB** — โค้ด + `artifacts/` + `train.parquet` (74 MB ซึ่ง `ShapExplainer` ต้องใช้)
+`val.parquet` กับ `test.parquet` ถูกตัดออกเพราะใน VM เราจับทราฟฟิกสดจาก Mininet ไม่ได้ใช้ replay
+
+ใน VM:
+
+```bash
+cd ~/nids
+python3 -m venv .venv                  # Python 3.10 ของระบบ -- ผ่านเงื่อนไข >=3.9
+.venv/bin/pip install --upgrade pip
 .venv/bin/pip install -r requirements.txt
-```
-
-**ไฟล์ที่ไม่ได้อยู่ใน git และต้องคัดลอกเข้าไปเอง** — `train.parquet` (74 MB) ซึ่ง `ShapExplainer` ต้องใช้:
-
-```bash
-# รันบนเครื่องหลัก
-scp data/processed_w50/train.parquet <user>@<ip-ของ-vm>:~/Network-Intrusion-Detection-System/data/processed_w50/
-```
-
-> ถ้ายังไม่คัดลอก ระบบจะยังทำงานได้ทุกอย่างยกเว้น `/explain` ซึ่งจะตอบ 503
-> สำหรับการทดสอบเชื่อมต่อรอบแรกไม่จำเป็น
-
-ตรวจว่าใช้ได้:
-
-```bash
-cd ~/Network-Intrusion-Detection-System
 .venv/bin/python -m pytest -q          # ควรผ่านทั้งหมด
 ```
 
@@ -200,10 +229,10 @@ cd ~/Network-Intrusion-Detection-System
 ```bash
 # เทอร์มินัล 1 -- ตัวควบคุม Ryu
 ~/ryu-venv/bin/ryu-manager --observe-links ryu.app.ofctl_rest \
-  ~/Network-Intrusion-Detection-System/network_simulation/ryu_app.py
+  ~/nids/network_simulation/ryu_app.py
 
 # เทอร์มินัล 2 -- โทโพโลยี
-cd ~/Network-Intrusion-Detection-System
+cd ~/nids
 sudo .venv/bin/python network_simulation/topology.py
 
 # เทอร์มินัล 3 -- ดึงกฎไฟร์วอลล์จากตัวควบคุมจริง
@@ -230,11 +259,17 @@ curl -s http://localhost:8080/stats/flow/1 | head -c 400
 
 ก่อนเขียนคู่มือนี้ ตรวจแล้วว่า:
 
-- ISO `ubuntu-20.04.6-live-server-amd64.iso` ดาวน์โหลดได้จริง (HTTP 200)
+- ISO `ubuntu-22.04.5-live-server-amd64.iso` ดาวน์โหลดได้จริง (HTTP 200)
+  — รุ่น 22.04.4 ถูกแทนที่ไปแล้ว (404)
 - แพ็กเกจฝั่งเครื่องหลัก (Pop!_OS 24.04) มีครบ: `qemu-kvm` `libvirt-daemon-system`
   `virt-manager` `virtinst` `ovmf`
-- แพ็กเกจฝั่ง VM (Ubuntu 20.04) มีครบ: `mininet` `openvswitch-switch`
+- แพ็กเกจฝั่ง VM (Ubuntu 22.04) มีครบ: `mininet` `openvswitch-switch`
   `openvswitch-testcontroller` `python3-venv` `hping3` `nmap`
+- deadsnakes มี `python3.9` สำหรับ jammy จริง (เวอร์ชัน `3.9.25-1+jammy1`)
+- **deadsnakes เลิกรองรับ focal แล้ว** — ดัชนีแพ็กเกจของ 20.04 ว่างเปล่า (0 ไบต์)
+  ซึ่งเป็นเหตุผลที่คู่มือนี้เปลี่ยนจาก 20.04 มาเป็น 22.04
+- `requirements.txt` ต้องการ Python ≥ 3.9 (ตรวจจาก metadata ของ numpy 1.26,
+  pandas 2.2, scikit-learn 1.4, scipy 1.12 บน PyPI) — Python 3.8 ของ 20.04 จึงใช้ไม่ได้
 - เครื่องคุณ: VT-x เปิด · `/dev/kvm` มีแล้ว · RAM 15 GB
 - ดิสก์ลูกที่สอง `/dev/nvme1n1p1` ว่าง 419 GB · อยู่ใน `/etc/fstab` แล้ว (มี `nofail`)
 - ACL บน `/media/ekkasit` ให้สิทธิ์เฉพาะผู้ใช้ `ekkasit` — เป็นเหตุผลที่ต้อง bind mount
