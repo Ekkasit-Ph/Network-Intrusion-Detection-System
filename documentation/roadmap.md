@@ -14,13 +14,13 @@
 | แทร็กที่สัญญาไว้ | สถานะ | อยู่ในแผนข้อ |
 |---|---|---|
 | public dataset | ✅ เสร็จ | — |
-| simulated attack | ❌ ยังไม่ได้รัน (รอ VM) | **3** |
+| simulated attack | ✅ **เสร็จ 20 ก.ย. 2569** → [mininet-integration-run.md](mininet-integration-run.md) | ~~3~~ |
 | explainability evaluation | ✅ **เสร็จ 20 ก.ย. 2569** → [explanation-quality.md](explanation-quality.md) | ~~2~~ |
 | resource usage | ✅ **เสร็จ 19 ก.ย. 2569** → [resource-benchmark.md](resource-benchmark.md) | ~~1~~ |
 
-**เหลือแทร็กเดียว: simulated attack** ซึ่งรอ VM อย่างเดียว
-งานที่ทำไปเจอบั๊กจริง 3 ตัว — nfstream หด CPU affinity, ShapExplainer กินแรม 2 GB,
-และ nsamples=100 ให้คำอธิบายที่ไม่เสถียร
+**ครบทั้ง 4 แทร็กแล้ว** — งานที่ทำไปเจอบั๊กจริง 3 ตัว (nfstream หด CPU affinity,
+ShapExplainer กินแรม 2 GB, nsamples=100 ให้คำอธิบายที่ไม่เสถียร) และการรัน Mininet
+ยืนยันว่าโมดูล 1 ทำงานถูกต้อง พร้อมแสดงให้เห็นว่าเกิดอะไรขึ้นถ้าไม่เทรนใหม่ต่อเครือข่าย
 
 เพิ่มเติมที่ไม่ได้สัญญาไว้แต่กรรมการถามแน่:
 
