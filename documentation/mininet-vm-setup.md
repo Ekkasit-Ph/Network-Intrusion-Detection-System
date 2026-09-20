@@ -119,9 +119,24 @@ sudo touch /var/lib/libvirt/images/.probe && sudo rm /var/lib/libvirt/images/.pr
 ## ขั้นที่ 2 — โหลด ISO
 
 ```bash
-# เก็บ ISO ไว้บนดิสก์ลูกที่สองด้วย จะได้ไม่กินดิสก์หลัก
-mkdir -p /media/ekkasit/Games/VMs/iso && cd /media/ekkasit/Games/VMs/iso
-wget https://releases.ubuntu.com/22.04/ubuntu-22.04.5-live-server-amd64.iso
+# เก็บ ISO บนดิสก์ลูกที่สอง แต่**อ้างผ่านเส้นทาง bind mount เสมอ**
+sudo mkdir -p /var/lib/libvirt/images/iso
+sudo chmod 0755 /var/lib/libvirt/images/iso
+cd /var/lib/libvirt/images/iso
+sudo wget https://releases.ubuntu.com/22.04/ubuntu-22.04.5-live-server-amd64.iso
+sudo chmod 0644 ubuntu-22.04.5-live-server-amd64.iso
+```
+
+> 🔴 **อย่าโหลดไว้ใน `~/` หรืออ้างผ่าน `/media/ekkasit/Games/...`**
+> `/home/ekkasit` เป็น `drwxr-x--- ekkasit ekkasit` และ `/media/ekkasit` มี ACL ให้เฉพาะ `ekkasit`
+> ส่วน qemu รันเป็นผู้ใช้ `libvirt-qemu` (uid 64055 กลุ่ม kvm) ซึ่ง**เดินผ่านทั้งสองที่ไม่ได้**
+> จะขึ้น permission denied ตอนเปิด ISO — และ AppArmor ก็อนุญาตเฉพาะเส้นทางมาตรฐาน
+
+ตรวจก่อนไปต่อ:
+
+```bash
+sudo -u libvirt-qemu test -r /var/lib/libvirt/images/iso/ubuntu-22.04.5-live-server-amd64.iso \
+  && echo "libvirt-qemu อ่านได้"
 ```
 
 ใช้ **live-server** ไม่ใช่ desktop — เบากว่ามาก และงานนี้ใช้แต่บรรทัดคำสั่ง (~1.4 GB)
@@ -134,7 +149,7 @@ virt-install \
   --memory 6144 \
   --vcpus 4 \
   --disk path=/var/lib/libvirt/images/mininet-nids.qcow2,size=60,format=qcow2 \
-  --cdrom /media/ekkasit/Games/VMs/iso/ubuntu-22.04.5-live-server-amd64.iso \
+  --cdrom /var/lib/libvirt/images/iso/ubuntu-22.04.5-live-server-amd64.iso \
   --os-variant ubuntu22.04 \
   --network network=default \
   --graphics spice \
@@ -295,4 +310,7 @@ curl -s http://localhost:8080/stats/flow/1 | head -c 400
 | สร้าง VM แล้วขึ้น permission denied | bind mount ยังไม่ทำงาน → `findmnt /var/lib/libvirt/images` |
 | `mount --bind` ขึ้น mount point does not exist | ยังไม่ได้ลง KVM (ขั้นที่ 1) → `/var/lib/libvirt/images` ยังไม่ถูกสร้าง |
 | `virsh` / `virt-install` ไม่พบคำสั่ง | ขั้นที่ 1 ยังไม่ได้รัน → ตรวจด้วย `dpkg -s libvirt-daemon-system` |
+| เปิด ISO ไม่ได้ / permission denied | ISO อยู่ใน `~/` หรืออ้างผ่าน `/media/...` → ย้ายไป `/var/lib/libvirt/images/iso/` |
+| `qemu-kvm` ลงไม่ได้ | บน 24.04 เป็นแพ็กเกจเปล่า ตัวจริงคือ `qemu-system-x86` — ไม่ใช่ปัญหา |
+| ดิสก์สลับเลข nvme0/nvme1 หลังบูต | ปกติ — fstab ใช้ UUID จึงไม่กระทบ |
 | บูตมาแล้ว VM หาย | ดิสก์ Games ไม่ได้ mount → `sudo mount -a` แล้วดู `journalctl -u libvirtd` |
