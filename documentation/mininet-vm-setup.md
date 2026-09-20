@@ -182,11 +182,21 @@ sudo apt install -y mininet openvswitch-switch openvswitch-testcontroller \
                     python3-pip python3-venv git tcpdump hping3 nmap
 
 # ปิดตัวควบคุมสำรองที่ Ubuntu เปิดให้อัตโนมัติ -- มันจะชนกับ Ryu ที่พอร์ต 6653
-sudo systemctl disable --now openvswitch-testcontroller 2>/dev/null || true
+# ชื่อ service คือ ovs-testcontroller ไม่ใช่ชื่อแพ็กเกจ openvswitch-testcontroller
+sudo systemctl disable --now ovs-testcontroller
+
+# ยืนยันว่าพอร์ตว่างจริง -- ถ้าข้ามขั้นนี้ mn จะตายพร้อมข้อความ
+# "Please shut down the controller which is running on port 6653"
+sudo ss -lntp | grep 6653 || echo "พอร์ต 6653 ว่างแล้ว"
 
 # ทดสอบว่า Mininet ใช้ได้
+sudo mn -c              # ล้างของค้างจากรอบก่อน
 sudo mn --test pingall
 ```
+
+> **อย่าถอนแพ็กเกจ `openvswitch-testcontroller` ทิ้ง** — `mn --test pingall` เรียกไฟล์
+> `ovs-testcontroller` มาเป็นตัวควบคุมชั่วคราวของตัวเอง ถอนแล้วจะขึ้น
+> *"Cannot find required executable"* เราแค่ไม่ต้องการให้มันรันเป็น service ค้างไว้
 
 ต้องเห็น `*** Results: 0% dropped` ถ้าเห็นแล้วแปลว่า Mininet กับ Open vSwitch พร้อม
 
@@ -304,7 +314,7 @@ curl -s http://localhost:8080/stats/flow/1 | head -c 400
 | `virsh` ขึ้น permission denied | ยังไม่ได้ออกจากระบบหลัง `usermod` |
 | `mn --test pingall` ค้าง | มีตัวควบคุมเก่าค้างอยู่ → `sudo mn -c` |
 | Ryu ขึ้น `ALREADY_HANDLED` | eventlet ใหม่เกิน → กด `eventlet==0.30.2` |
-| พอร์ต 6653 ถูกใช้แล้ว | `sudo systemctl stop openvswitch-testcontroller` |
+| พอร์ต 6653 ถูกใช้แล้ว | `sudo systemctl disable --now ovs-testcontroller` — **ชื่อ service ไม่เหมือนชื่อแพ็กเกจ** ถ้ายังไม่หาย `sudo pkill -f ovs-testcontroller && sudo systemctl mask ovs-testcontroller` |
 | VM ช้ามาก | ไม่ได้ใช้ KVM → ตรวจ `virsh dumpxml mininet-nids \| grep kvm` |
 | เน็ตใน VM ไม่ทำงาน | `sudo virsh net-start default` บนเครื่องหลัก |
 | สร้าง VM แล้วขึ้น permission denied | bind mount ยังไม่ทำงาน → `findmnt /var/lib/libvirt/images` |
