@@ -472,3 +472,13 @@ body {
 .inc-flows button:hover { border-color: var(--color-accent); color: var(--color-accent); }
 .inc-flows button[data-worst="1"] { border-color: var(--color-accent); font-weight: 700; }
 .inc-more { font-size: 11px; color: var(--color-neutral-600); align-self: center; }
+
+/* A stat tile's second line: what the number should be, beside what it is. */
+.stat .note { margin-top: 2px; font-size: 9.5px; color: var(--color-neutral-600); font-family: var(--font-mono); }
+/* The anomaly-rate tile against its calibration. Accent, not a red alarm:
+   attacks move this the same way drift does, and the tile cannot tell them
+   apart -- it is pointing, not concluding. */
+.stat[data-drift="high"] .v b, .stat[data-drift="low"] .v b { color: var(--color-accent); }
+.stat[data-drift="high"] .note, .stat[data-drift="low"] .note { color: var(--color-accent); }
+.stat[data-drift="high"] { box-shadow: inset 3px 0 0 var(--color-accent); }
+.stat[data-drift="low"] { box-shadow: inset 3px 0 0 var(--color-neutral-500); }

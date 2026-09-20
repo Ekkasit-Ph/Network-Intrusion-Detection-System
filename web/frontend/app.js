@@ -149,19 +149,36 @@ function renderStats() {
   // flows, and a dashboard that appears to contradict itself is worse than
   // one that is merely dense.
   const w = s ? s.window : "1h";
+  // The threshold was fitted so that this fraction of *benign* traffic is
+  // flagged, so the calibrated rate is what the tile should read on a
+  // network with no attacks in it. Divergence is the one drift signal
+  // available without labels -- and it is deliberately not called drift,
+  // because attacks move it the same way. Both readings are the operator's
+  // business; which one it is, is their judgement.
+  const calibrated = state.meta && state.meta.calibration
+    ? state.meta.calibration.expected_flag_rate_on_benign : null;
+  const observed = s ? s.anomaly_rate : null;
+  const ratio = calibrated && observed != null && calibrated > 0 ? observed / calibrated : null;
+  const drift = ratio == null ? "" : ratio >= 3 ? "high" : ratio <= 1 / 3 ? "low" : "ok";
+
   const tiles = [
-    [`Total flows · ${w}`, s ? s.total_flows.toLocaleString() : "—", ""],
-    [`Anomalies · ${w}`, s ? s.anomalies.toLocaleString() : "—", ""],
-    [`Anomaly rate · ${w}`, s ? (s.anomaly_rate * 100).toFixed(1) : "—", "%"],
-    [`Avg error · ${w}`, s ? f6(s.avg_reconstruction_error) : "—", ""],
-    ["Threshold", thr != null ? f6(thr) : "—", ""],
-    ["Throughput", (received / secs).toFixed(1), "flow/s"],
-    ["Last update", clock(new Date().toISOString()), state.paused ? "paused" : "live"],
+    [`Total flows · ${w}`, s ? s.total_flows.toLocaleString() : "—", "", ""],
+    [`Anomalies · ${w}`, s ? s.anomalies.toLocaleString() : "—", "", ""],
+    [`Anomaly rate · ${w}`, observed != null ? (observed * 100).toFixed(1) : "—", "%",
+      calibrated != null ? `calibrated ${(calibrated * 100).toFixed(1)}%` : "", drift],
+    [`Avg error · ${w}`, s ? f6(s.avg_reconstruction_error) : "—", "", ""],
+    ["Threshold", thr != null ? f6(thr) : "—", "",
+      state.meta && state.meta.model ? esc(state.meta.model) : ""],
+    ["Throughput", (received / secs).toFixed(1), "flow/s", ""],
+    ["Last update", clock(new Date().toISOString()), state.paused ? "paused" : "live", ""],
   ];
   $("#stats").innerHTML = tiles
-    .map(([label, value, unit]) =>
-      `<div class="stat"><div class="kicker trunc">${esc(label)}</div>
-       <div class="v"><b>${esc(value)}</b><span>${esc(unit)}</span></div></div>`)
+    .map(([label, value, unit, note, state_]) =>
+      `<div class="stat"${state_ ? ` data-drift="${esc(state_)}"` : ""}>
+         <div class="kicker trunc">${esc(label)}</div>
+         <div class="v"><b>${esc(value)}</b><span>${esc(unit)}</span></div>
+         ${note ? `<div class="note trunc" title="${esc(note)}">${esc(note)}</div>` : ""}
+       </div>`)
     .join("");
 }
 
@@ -1016,11 +1033,18 @@ function setPanel(open) {
   try {
     state.meta = await api("/meta");
     const m = state.meta.metrics;
+    // Which model produced these numbers, not just the numbers. After a
+    // redeploy a reader has no other way to tell whether the figures on
+    // screen belong to the weights now serving.
+    const fitted = state.meta.model_trained_at
+      ? new Date(state.meta.model_trained_at).toISOString().slice(0, 10) : null;
+    const parts = [`Model ${state.meta.model}${fitted ? ` · fitted ${fitted}` : ""}`];
     if (m) {
-      $("#foot-metrics").textContent =
-        `Test set ${(m.n_test_rows / 1e6).toFixed(1)}M flows — recall ${(m.recall * 100).toFixed(2)}% · ` +
-        `FPR ${(m.fpr * 100).toFixed(2)}% · precision ${(m.precision * 100).toFixed(2)}%`;
+      parts.push(`test set ${(m.n_test_rows / 1e6).toFixed(1)}M flows — recall ` +
+        `${(m.recall * 100).toFixed(2)}% · FPR ${(m.fpr * 100).toFixed(2)}% · ` +
+        `precision ${(m.precision * 100).toFixed(2)}%`);
     }
+    $("#foot-metrics").textContent = parts.join(" — ");
   } catch (err) {
     // Without /meta the SHAP panel cannot de-standardize, but everything
     // else works — degrade rather than show a blank page.

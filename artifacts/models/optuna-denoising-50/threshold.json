@@ -1,6 +1,6 @@
 {
   "method": "percentile",
-  "value": 0.0019442916382104158,
+  "value": 0.0019442950142547488,
   "percentile": 95,
   "selection_criterion": "max recall on validation set among candidates with FPR <= 0.05",
   "val_metrics_at_selected_threshold": {
@@ -9,5 +9,17 @@
     "f1": 0.9296340162092257,
     "fpr": 0.05,
     "accuracy": 0.8865578722085767
+  },
+  "calibration_reference": {
+    "benign_error_percentiles": {
+      "50": 0.0003086996730417013,
+      "75": 0.0006036246195435524,
+      "90": 0.0012226031394675374,
+      "95": 0.0019442950142547488,
+      "99": 0.00567984115332365
+    },
+    "benign_error_mean": 0.0007413580315187573,
+    "expected_flag_rate_on_benign": 0.05,
+    "n_val_benign": 914920
   }
 }

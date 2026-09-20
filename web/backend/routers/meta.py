@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timezone
 import os
 from pathlib import Path
 
@@ -48,6 +49,16 @@ def _preprocessing_dir(processed_dir: Path) -> Path:
         return Path(override)
     suffix = processed_dir.name.removeprefix("processed")
     return paths.ARTIFACTS_DIR / f"preprocessing{suffix}"
+
+
+def _trained_at(artifacts_dir: Path) -> str | None:
+    """When the serving model file was written. Taken from the file rather
+    than recorded at training time so it cannot drift out of step with the
+    weights actually loaded."""
+    model = artifacts_dir / "model.pt"
+    if not model.exists():
+        return None
+    return datetime.fromtimestamp(model.stat().st_mtime, tz=timezone.utc).isoformat()
 
 
 def build_meta() -> dict:
@@ -86,6 +97,16 @@ def build_meta() -> dict:
         "feature_columns": feature_cols,
         "features": features,
         "threshold": threshold["value"],
+        # Which model is actually serving, and when it was fitted. A
+        # dashboard that reports a detection rate without saying which model
+        # produced it is asking to be read against the wrong one after a
+        # redeploy.
+        "model_trained_at": _trained_at(artifacts_dir),
+        # What benign traffic looked like when the threshold was set. The
+        # dashboard compares the live anomaly rate against
+        # expected_flag_rate_on_benign to say whether the model still fits
+        # the network -- the one drift signal available without labels.
+        "calibration": threshold.get("calibration_reference"),
         "threshold_criterion": threshold.get("selection_criterion", ""),
     }
 

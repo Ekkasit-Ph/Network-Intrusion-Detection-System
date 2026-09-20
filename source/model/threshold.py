@@ -193,6 +193,23 @@ def run(processed_dir: Path, artifacts_dir: Path, max_fpr: float = 0.05) -> dict
         "percentile": best.get("percentile"),
         "selection_criterion": f"max recall on validation set among candidates with FPR <= {max_fpr}",
         "val_metrics_at_selected_threshold": best["metrics"],
+        # What the benign error distribution looked like when this threshold
+        # was fitted, so a running deployment has something to compare
+        # against. Drift is the reason a model needs retraining, and without
+        # a record of the distribution it was calibrated on there is nothing
+        # to notice drift *from* -- the operator is left inferring it from
+        # the alert count, which also moves when the network is merely busy.
+        # Labels are not needed to make the comparison, which matters: a
+        # deployment has none.
+        "calibration_reference": {
+            "benign_error_percentiles": {
+                str(p): float(np.percentile(benign_errors, p))
+                for p in (50, 75, 90, 95, 99)
+            },
+            "benign_error_mean": float(np.mean(benign_errors)),
+            "expected_flag_rate_on_benign": float(np.mean(benign_errors > best["value"])),
+            "n_val_benign": int(len(benign_errors)),
+        },
     }
 
     analysis = {
