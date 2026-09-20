@@ -210,10 +210,14 @@ sudo apt update
 sudo apt install -y python3.9 python3.9-venv python3.9-dev
 
 python3.9 -m venv ~/ryu-venv
-~/ryu-venv/bin/pip install --upgrade pip
 
-# eventlet รุ่นใหม่ตัด ALREADY_HANDLED ออก ทำให้ Ryu พัง -- ต้องกดเวอร์ชัน
-~/ryu-venv/bin/pip install 'eventlet==0.30.2' ryu
+# 🔴 ต้องกด setuptools ก่อน -- ตั้งแต่ 58.0 มันตัด easy_install.get_script_args
+# ซึ่ง pbr ที่ Ryu ใช้ยังเรียกอยู่ ถ้าไม่กดจะขึ้น
+#   AttributeError: 'types.SimpleNamespace' object has no attribute 'get_script_args'
+~/ryu-venv/bin/pip install 'setuptools<58' 'wheel<0.41'
+
+# eventlet รุ่นใหม่ตัด ALREADY_HANDLED ออก ทำให้ Ryu พัง -- ต้องกดเวอร์ชันเช่นกัน
+~/ryu-venv/bin/pip install --no-build-isolation 'eventlet==0.30.2' ryu
 
 ~/ryu-venv/bin/python --version         # ต้องขึ้น Python 3.9.x
 ~/ryu-venv/bin/ryu-manager --version    # ต้องขึ้นเลขเวอร์ชัน ไม่ใช่ traceback
@@ -257,16 +261,34 @@ python3 -m venv .venv                  # Python 3.10 ของระบบ -- �
 
 ```bash
 # เทอร์มินัล 1 -- ตัวควบคุม Ryu
-~/ryu-venv/bin/ryu-manager --observe-links ryu.app.ofctl_rest \
-  ~/nids/network_simulation/ryu_app.py
+# PYTHONPATH จำเป็น: ryu-manager โหลดไฟล์แบบเดี่ยว ๆ ~/nids จึงไม่อยู่ใน sys.path
+# และ ryu_app.py มี `from network_simulation.firewall_rules import ...`
+PYTHONPATH=$HOME/nids ~/ryu-venv/bin/ryu-manager --observe-links ryu.app.ofctl_rest \
+  $HOME/nids/network_simulation/ryu_app.py
 
 # เทอร์มินัล 2 -- โทโพโลยี
+# ใช้ python3 ของระบบ ไม่ใช่ .venv -- mininet ลงผ่าน apt ไว้ที่
+# /usr/lib/python3/dist-packages ซึ่ง venv มองไม่เห็น
+# (topology.py ใช้แค่ mininet + stdlib ไม่ต้องใช้ dependency ของโปรเจกต์)
 cd ~/nids
-sudo .venv/bin/python network_simulation/topology.py
+sudo PYTHONPATH=$HOME/nids python3 network_simulation/topology.py
 
 # เทอร์มินัล 3 -- ดึงกฎไฟร์วอลล์จากตัวควบคุมจริง
+curl -s http://localhost:8080/stats/switches      # ควรได้ [1]
 curl -s http://localhost:8080/stats/flow/1 | head -c 400
 ```
+
+**ผลที่ยืนยันแล้วว่าได้จริง** (รันบน VM นี้เมื่อ 20 ก.ย. 2569):
+
+```
+สวิตช์ที่ต่อเข้า Ryu : [1]
+กฎบนสวิตช์ 1        : 9 กฎ
+prio 300  match {nw_src: 10.0.1.0/24, nw_proto: 6, tp_dst: 445}  actions []
+prio 300  match {nw_proto: 6, tp_dst: 23}                        actions []
+```
+
+`actions []` คือ DROP ตามที่ `ryu_app.py` ตั้งใจ — **กฎถูกติดตั้งลงสวิตช์จริงโดย Ryu
+แล้วอ่านกลับผ่าน REST ได้** ซึ่งเดิมโมดูล 6 ทวนสอบได้แค่กับไฟล์ JSON ที่ export เอง
 
 ถ้าคำสั่งสุดท้ายคืน JSON ที่มีกฎอยู่ **แปลว่าโมดูล 6 ต่อกับตัวควบคุมจริงได้แล้ว**
 ซึ่งเป็นรอยต่อที่เดิมทวนสอบได้แค่ด้วยไฟล์ที่ export ไว้
@@ -287,6 +309,10 @@ curl -s http://localhost:8080/stats/flow/1 | head -c 400
 ## ตรวจสอบแล้ว
 
 ก่อนเขียนคู่มือนี้ ตรวจแล้วว่า:
+
+**อัปเดต 20 ก.ย. 2569 — ขั้นที่ 1 ถึง 7 รันจริงบน VM นี้แล้วทั้งหมด**
+ผลที่ได้: `mn --test pingall` 0% dropped · `ryu-manager 4.34` · โปรเจกต์ 225 เทสต์ผ่านบน Python 3.10 ·
+Ryu ติดตั้งกฎ 9 ข้อลงสวิตช์และอ่านกลับผ่าน REST ได้
 
 - ISO `ubuntu-22.04.5-live-server-amd64.iso` ดาวน์โหลดได้จริง (HTTP 200)
   — รุ่น 22.04.4 ถูกแทนที่ไปแล้ว (404)
@@ -317,6 +343,10 @@ curl -s http://localhost:8080/stats/flow/1 | head -c 400
 | พอร์ต 6653 ถูกใช้แล้ว | `sudo systemctl disable --now ovs-testcontroller` — **ชื่อ service ไม่เหมือนชื่อแพ็กเกจ** ถ้ายังไม่หาย `sudo pkill -f ovs-testcontroller && sudo systemctl mask ovs-testcontroller` |
 | VM ช้ามาก | ไม่ได้ใช้ KVM → ตรวจ `virsh dumpxml mininet-nids \| grep kvm` |
 | เน็ตใน VM ไม่ทำงาน | `sudo virsh net-start default` บนเครื่องหลัก |
+| `pip install ryu` ขึ้น `get_script_args` | setuptools ≥58 → `pip install 'setuptools<58'` ก่อน |
+| `ModuleNotFoundError: network_simulation` | ryu-manager ไม่เห็น `~/nids` → ตั้ง `PYTHONPATH=$HOME/nids` |
+| `topology.py` บอกว่า Mininet ไม่ได้ลง | รันด้วย `.venv/bin/python` ซึ่งไม่เห็น mininet ของระบบ → ใช้ `python3` |
+| `sudo` ใน ssh คืนค่าว่างเงียบ ๆ | ต้องใส่รหัสผ่านแต่ไม่มี TTY → ตั้ง NOPASSWD ใน `/etc/sudoers.d/` |
 | สร้าง VM แล้วขึ้น permission denied | bind mount ยังไม่ทำงาน → `findmnt /var/lib/libvirt/images` |
 | `mount --bind` ขึ้น mount point does not exist | ยังไม่ได้ลง KVM (ขั้นที่ 1) → `/var/lib/libvirt/images` ยังไม่ถูกสร้าง |
 | `virsh` / `virt-install` ไม่พบคำสั่ง | ขั้นที่ 1 ยังไม่ได้รัน → ตรวจด้วย `dpkg -s libvirt-daemon-system` |
