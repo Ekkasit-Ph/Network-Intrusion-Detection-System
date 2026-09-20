@@ -295,16 +295,24 @@ prio 300  match {nw_proto: 6, tp_dst: 23}                        actions []
 
 ---
 
-## สิ่งที่ยังต้องทำหลังจากนี้ (ยังไม่มีในโค้ด)
+## ทำครบแล้ว — `nids1` + mirror port อยู่ใน `topology.py` เรียบร้อย
 
-`topology.py` ปัจจุบัน **ยังไม่ได้สร้างโฮสต์สำหรับ NIDS และยังไม่มี mirror port**
-ตัวสกัดโฟลว์จึงยังไม่มีที่ยืน ต้องเพิ่ม:
+`build()` เพิ่มโฮสต์ `nids1` (10.0.4.11) ต่อเข้าสวิตช์เป็นพอร์ตสุดท้าย และ
+`mirror_to_sensor()` ตั้ง OVS ให้สำเนาทราฟฟิกทุกพอร์ตไปที่นั่น (เปิดอัตโนมัติ
+ใช้ `--no-mirror` เพื่อปิด)
 
-1. โฮสต์ `nids1` ต่อเข้าสวิตช์
-2. ตั้ง OVS ให้ mirror ทราฟฟิกทั้งหมดไปที่พอร์ตนั้น
-3. รัน `web.backend.live_capture` บนโฮสต์นั้น
+```bash
+# รันทั้งท่อ -- mirror ตั้งให้เอง
+sudo PYTHONPATH=$HOME/nids python3 network_simulation/topology.py
 
-**บอกผมเมื่อ VM พร้อม เดี๋ยวผมเขียนส่วนนี้ให้** — หรือจะให้เขียนรอไว้ก่อนก็ได้
+mininet> nids1 cd /home/ekkasit/nids && .venv/bin/python -m web.backend.live_capture \
+           --source nids1-eth0 --processed-dir data/processed_w50 \
+           --artifacts-dir artifacts/models/optuna-denoising-50 &
+mininet> iot1 curl -s -o /dev/null http://10.0.2.11/
+mininet> atk1 for p in 21 22 23 80; do timeout 1 bash -c "</dev/tcp/10.0.2.11/$p"; done
+```
+
+ผลการรันจริงและสิ่งที่พบ: [mininet-integration-run.md](mininet-integration-run.md)
 
 ## ตรวจสอบแล้ว
 
