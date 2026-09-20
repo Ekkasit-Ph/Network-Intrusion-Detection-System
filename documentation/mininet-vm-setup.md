@@ -45,10 +45,65 @@ systemctl status libvirtd --no-pager  # ต้อง active (running)
 virsh list --all                      # ต้องไม่ error
 ```
 
+## ขั้นที่ 1.5 — เก็บ VM ไว้บนดิสก์ลูกที่สอง
+
+เครื่องนี้มี NVMe ลูกที่สอง (Samsung PM9A1) **ว่าง 419 GB จาก 469 GB** อยู่ที่ `/media/ekkasit/Games`
+เหมาะกว่าดิสก์หลักเพราะ **I/O ของ VM จะไม่ไปชนกับระบบปฏิบัติการ**
+
+### ปัญหาที่ต้องแก้ก่อน: libvirt เข้าไม่ถึงเส้นทางนั้น
+
+```
+/media/ekkasit         user:ekkasit:r-x  other::---     <- ACL ให้เฉพาะ ekkasit
+/media/ekkasit/Games   user::rwx  group::---  other::---
+```
+
+libvirt รัน qemu ด้วยผู้ใช้ **`libvirt-qemu`** ซึ่ง**เดินผ่านสองชั้นนี้ไม่ได้**
+วางไฟล์ VM ไว้ตรงนั้นตรง ๆ แล้วจะขึ้น permission denied
+
+### วิธีแก้: bind mount ไปทับที่เก็บมาตรฐานของ libvirt
+
+```bash
+# สร้างที่เก็บบนดิสก์ลูกที่สอง ให้สิทธิ์แบบเดียวกับของเดิมของ libvirt
+sudo mkdir -p /media/ekkasit/Games/VMs
+sudo chown root:root /media/ekkasit/Games/VMs
+sudo chmod 0711 /media/ekkasit/Games/VMs
+
+# ผูกเข้ากับที่เก็บมาตรฐาน
+sudo mount --bind /media/ekkasit/Games/VMs /var/lib/libvirt/images
+```
+
+ให้ถาวรโดยเพิ่มบรรทัดนี้ใน `/etc/fstab` **ต่อจากบรรทัดที่ mount ดิสก์ Games**:
+
+```
+/media/ekkasit/Games/VMs  /var/lib/libvirt/images  none  bind,nofail,x-systemd.requires-mounts-for=/media/ekkasit/Games  0  0
+```
+
+**ทำไมวิธีนี้ถึงได้ผล** — หลัง bind mount เคอร์เนลจะไล่เส้นทางผ่าน `/var/lib/libvirt/images`
+ซึ่งเข้าถึงได้ปกติ **ACL บน `/media/ekkasit` ไม่ถูกตรวจอีกต่อไป**
+
+**และได้ประโยชน์อีกข้อ** — AppArmor ของ Ubuntu จำกัดสิทธิ์ qemu ตามเส้นทางในไฟล์ XML ของ VM
+การใช้เส้นทางมาตรฐาน `/var/lib/libvirt/images` ทำให้ไม่ต้องไปแก้โปรไฟล์ AppArmor เลย
+
+ตรวจว่าใช้ได้:
+
+```bash
+findmnt /var/lib/libvirt/images          # ต้องเห็น source เป็น /dev/nvme1n1p1
+df -h /var/lib/libvirt/images            # ต้องเห็นว่าง ~419G ไม่ใช่ 250G
+sudo -u libvirt-qemu test -w /var/lib/libvirt/images && echo "libvirt-qemu เขียนได้"
+```
+
+> **ทางเลือกที่ง่ายกว่าแต่สะอาดน้อยกว่า** — แก้ `/etc/libvirt/qemu.conf` ให้ `user = "ekkasit"`
+> แล้ว qemu จะเดินผ่าน ACL ได้ แต่เปลี่ยนรูปแบบความปลอดภัยของ VM **ทุกตัว** และอาจยังติด AppArmor
+> แนะนำให้ใช้ bind mount
+
+> ⚠️ ดิสก์นี้ mount ด้วย `nosuid,nodev` ซึ่ง**ไม่มีผลกับไฟล์อิมเมจ qcow2** ใช้ได้ปกติ
+> และในบรรทัด fstab เดิมมี `nofail` อยู่แล้ว ถ้าดิสก์ไม่มีตอนบูตเครื่องก็ยังบูตขึ้น
+
 ## ขั้นที่ 2 — โหลด ISO
 
 ```bash
-mkdir -p ~/VMs && cd ~/VMs
+# เก็บ ISO ไว้บนดิสก์ลูกที่สองด้วย จะได้ไม่กินดิสก์หลัก
+mkdir -p /media/ekkasit/Games/VMs/iso && cd /media/ekkasit/Games/VMs/iso
 wget https://releases.ubuntu.com/20.04/ubuntu-20.04.6-live-server-amd64.iso
 ```
 
@@ -61,8 +116,8 @@ virt-install \
   --name mininet-nids \
   --memory 6144 \
   --vcpus 4 \
-  --disk path=$HOME/VMs/mininet-nids.qcow2,size=40,format=qcow2 \
-  --cdrom $HOME/VMs/ubuntu-20.04.6-live-server-amd64.iso \
+  --disk path=/var/lib/libvirt/images/mininet-nids.qcow2,size=60,format=qcow2 \
+  --cdrom /media/ekkasit/Games/VMs/iso/ubuntu-20.04.6-live-server-amd64.iso \
   --os-variant ubuntu20.04 \
   --network network=default \
   --graphics spice \
@@ -71,7 +126,7 @@ virt-install \
 virt-manager      # เปิดหน้าต่างแล้วดับเบิลคลิก mininet-nids เพื่อติดตั้งต่อ
 ```
 
-**ทรัพยากรที่ให้:** RAM 6 GB · 4 vCPU · ดิสก์ 40 GB
+**ทรัพยากรที่ให้:** RAM 6 GB · 4 vCPU · **ดิสก์ 60 GB** (ให้เผื่อได้เพราะมีที่ว่าง 419 GB)
 เครื่องหลักมี 15 GB — เหลือ 9 GB ให้ระบบหลัก พอสบาย แต่**ปิดเบราว์เซอร์ตอนรัน VM**
 
 ตอนติดตั้ง Ubuntu: เลือกค่าเริ่มต้นทั้งหมด **ติ๊ก "Install OpenSSH server"** จะได้ `ssh` เข้าได้
@@ -180,7 +235,9 @@ curl -s http://localhost:8080/stats/flow/1 | head -c 400
   `virt-manager` `virtinst` `ovmf`
 - แพ็กเกจฝั่ง VM (Ubuntu 20.04) มีครบ: `mininet` `openvswitch-switch`
   `openvswitch-testcontroller` `python3-venv` `hping3` `nmap`
-- เครื่องคุณ: VT-x เปิด · `/dev/kvm` มีแล้ว · RAM 15 GB · ดิสก์ว่าง 250 GB
+- เครื่องคุณ: VT-x เปิด · `/dev/kvm` มีแล้ว · RAM 15 GB
+- ดิสก์ลูกที่สอง `/dev/nvme1n1p1` ว่าง 419 GB · อยู่ใน `/etc/fstab` แล้ว (มี `nofail`)
+- ACL บน `/media/ekkasit` ให้สิทธิ์เฉพาะผู้ใช้ `ekkasit` — เป็นเหตุผลที่ต้อง bind mount
 
 **สิ่งที่ยังไม่ได้ตรวจ** — ขั้นตอนที่ต้องใช้ `sudo` และการติดตั้งจริงทั้งหมด
 รวมถึงการกดเวอร์ชัน `eventlet==0.30.2` ให้ Ryu ทำงาน ซึ่งเป็นวิธีแก้ที่รู้กันทั่วไป
@@ -196,3 +253,5 @@ curl -s http://localhost:8080/stats/flow/1 | head -c 400
 | พอร์ต 6653 ถูกใช้แล้ว | `sudo systemctl stop openvswitch-testcontroller` |
 | VM ช้ามาก | ไม่ได้ใช้ KVM → ตรวจ `virsh dumpxml mininet-nids \| grep kvm` |
 | เน็ตใน VM ไม่ทำงาน | `sudo virsh net-start default` บนเครื่องหลัก |
+| สร้าง VM แล้วขึ้น permission denied | bind mount ยังไม่ทำงาน → `findmnt /var/lib/libvirt/images` |
+| บูตมาแล้ว VM หาย | ดิสก์ Games ไม่ได้ mount → `sudo mount -a` แล้วดู `journalctl -u libvirtd` |
