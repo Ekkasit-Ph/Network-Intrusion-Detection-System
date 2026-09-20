@@ -13,18 +13,32 @@ of magnitude is not showing them the same event a hundred times.
 A port scan is one decision to make and hundreds of flows. A DDoS is one
 decision and thousands. Grouping those back together is the difference.
 
-The three patterns are deliberately the same three the engineered features
-describe (see source/preprocessing/online.py) -- fan-out, port sweep, and
-fan-in -- because those are the shapes a single flow cannot show and a
-group can:
+The groupings are the same shapes the engineered features describe (see
+source/preprocessing/online.py), because those are what a single flow
+cannot show and a group can:
 
-    scan    one source reaching many destinations or many ports
-    flood   many sources converging on one destination
-    repeat  the same source, destination and port, over and over
+    fan_out    one source reaching many destinations or many ports
+    fan_in     many sources converging on one destination
+    repeated   the same source, destination and port, over and over
+    isolated   fits none of the above
 
-Anything that fits none of them stays its own incident. That is a real
-answer, not a fallback: a lone anomalous flow to one host on one port is
-exactly the case an operator should look at individually.
+`isolated` is a real answer, not a fallback: a lone anomalous flow to one
+host on one port is exactly the case an operator should look at on its own.
+
+These names describe the shape and nothing more, deliberately. Earlier they
+were `scan`, `flood` and `repeat`, which read as attack types -- and the
+detector has no notion of attack type, it emits one reconstruction error
+per flow and no class. Checked against the dataset's own labels, the names
+were not merely unproven but wrong: incidents shaped like `fan_in` were 71%
+`scanning` flows and almost no `ddos`, while every `ddos` flow in the
+sample landed in a `fan_out` group. A badge reading FLOOD over scanning
+traffic is worse than no badge, because an operator would act on it.
+
+What the shape does support is triage: "this host touched 300 destinations"
+is a fact about the flows, true whether the cause is a port scan, a
+vulnerability sweep run by the security team, or a monitoring agent
+polling. Which of those it is remains a human judgement, and the panel
+should not pretend otherwise.
 """
 from __future__ import annotations
 
@@ -43,10 +57,10 @@ DEFAULT_MIN_DISTINCT = 3
 DEFAULT_GAP_SECONDS = 300
 DEFAULT_MIN_REPEATS = 5
 
-PATTERN_SCAN = "scan"
-PATTERN_FLOOD = "flood"
-PATTERN_REPEAT = "repeat"
-PATTERN_SINGLE = "single"
+PATTERN_FAN_OUT = "fan_out"
+PATTERN_FAN_IN = "fan_in"
+PATTERN_REPEATED = "repeated"
+PATTERN_ISOLATED = "isolated"
 
 
 @dataclass
@@ -155,19 +169,19 @@ def _candidates(flows: Sequence[dict[str, Any]], min_distinct: int, min_repeats:
     found: list[Incident] = []
     for src, group in by_src.items():
         for session in _sessionise(group, gap_seconds):
-            incident = _build(PATTERN_SCAN, str(src), session)
+            incident = _build(PATTERN_FAN_OUT, str(src), session)
             if max(incident.distinct_dst_ips, incident.distinct_dst_ports) >= min_distinct:
                 found.append(incident)
     for dst, group in by_dst.items():
         for session in _sessionise(group, gap_seconds):
-            incident = _build(PATTERN_FLOOD, str(dst), session)
+            incident = _build(PATTERN_FAN_IN, str(dst), session)
             if incident.distinct_src_ips >= min_distinct:
                 found.append(incident)
     for key, group in by_tuple.items():
         for session in _sessionise(group, gap_seconds):
             if len(session) >= min_repeats:
                 src, dst, port = key
-                found.append(_build(PATTERN_REPEAT, f"{src} -> {dst}:{port}", session))
+                found.append(_build(PATTERN_REPEATED, f"{src} -> {dst}:{port}", session))
     return found
 
 
@@ -179,12 +193,18 @@ def group_incidents(
 ) -> list[Incident]:
     """Anomalous flows in, incidents out, every flow in exactly one.
 
-    A flow can fit several shapes at once -- a DDoS participant is both a
+    A flow can fit several shapes at once -- a host in a botnet is both a
     source reaching a destination and one of many sources reaching it -- so
     the groupings compete and the largest wins, ties broken by the strongest
     flow in the group and then by key so the output does not depend on dict
-    ordering. Claiming greedily by size is what makes a thousand-flow flood
-    read as one incident instead of a thousand sources with two flows each.
+    ordering. Claiming greedily by size is what turns a thousand-flow burst
+    into one incident instead of a thousand sources with two flows each.
+
+    The cost of largest-wins is that a host doing two things at once is
+    reported as the larger one. Measured on the dataset, `fan_out` groups
+    absorbed every `ddos` flow in the sample, because the same hosts that
+    generate that traffic also reach many destinations. An operator reading
+    an incident is reading the dominant shape, not an inventory.
     """
     flows = [f for f in flows if f.get("flow_id")]
     if not flows:
@@ -200,23 +220,23 @@ def group_incidents(
         remaining = [fid for fid in candidate.flow_ids if fid not in claimed]
         # A group that has lost most of its members to a stronger group is no
         # longer the shape it was detected as; re-check rather than emit a
-        # "scan" that is now two flows.
+        # fan-out group that is now two flows.
         if len(remaining) < 2:
             continue
         rebuilt = _build(candidate.pattern, candidate.key, [by_id[fid] for fid in remaining])
-        if candidate.pattern == PATTERN_SCAN and max(
+        if candidate.pattern == PATTERN_FAN_OUT and max(
                 rebuilt.distinct_dst_ips, rebuilt.distinct_dst_ports) < min_distinct:
             continue
-        if candidate.pattern == PATTERN_FLOOD and rebuilt.distinct_src_ips < min_distinct:
+        if candidate.pattern == PATTERN_FAN_IN and rebuilt.distinct_src_ips < min_distinct:
             continue
-        if candidate.pattern == PATTERN_REPEAT and rebuilt.n_flows < min_repeats:
+        if candidate.pattern == PATTERN_REPEATED and rebuilt.n_flows < min_repeats:
             continue
         claimed.update(remaining)
         incidents.append(rebuilt)
 
     for flow in flows:
         if flow["flow_id"] not in claimed:
-            incidents.append(_build(PATTERN_SINGLE, str(flow.get("src_ip")), [flow]))
+            incidents.append(_build(PATTERN_ISOLATED, str(flow.get("src_ip")), [flow]))
 
     # Worst first: an operator working top-down should meet the most
     # anomalous thing first, not the largest.

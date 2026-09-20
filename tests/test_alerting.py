@@ -1,5 +1,10 @@
 """Tests for alert aggregation (source/alerting/aggregate.py).
 
+The pattern names describe shape only -- fan_out, fan_in, repeated,
+isolated -- and these tests assert the shapes, never an attack type. The
+detector emits a reconstruction error per flow and no class, so there is
+no attack type here to assert.
+
 The module's job is a volume claim -- one incident per thing that happened
 rather than one per flow -- so the tests are mostly about the shapes it is
 supposed to recognise, and about the two ways an aggregator quietly goes
@@ -13,10 +18,10 @@ from datetime import datetime, timedelta
 import pytest
 
 from source.alerting.aggregate import (
-    PATTERN_FLOOD,
-    PATTERN_REPEAT,
-    PATTERN_SCAN,
-    PATTERN_SINGLE,
+    PATTERN_FAN_IN,
+    PATTERN_REPEATED,
+    PATTERN_FAN_OUT,
+    PATTERN_ISOLATED,
     group_incidents,
     summarise,
 )
@@ -42,7 +47,7 @@ def test_port_sweep_becomes_one_incident():
     flows = [flow(f"f{i}", port=20 + i, offset=i) for i in range(40)]
     incidents = group_incidents(flows)
     assert len(incidents) == 1
-    assert incidents[0].pattern == PATTERN_SCAN
+    assert incidents[0].pattern == PATTERN_FAN_OUT
     assert incidents[0].n_flows == 40
     assert incidents[0].distinct_dst_ports == 40
 
@@ -51,7 +56,7 @@ def test_fan_out_across_hosts_becomes_one_incident():
     flows = [flow(f"f{i}", dst=f"10.0.2.{i}", offset=i) for i in range(25)]
     incidents = group_incidents(flows)
     assert len(incidents) == 1
-    assert incidents[0].pattern == PATTERN_SCAN
+    assert incidents[0].pattern == PATTERN_FAN_OUT
     assert incidents[0].distinct_dst_ips == 25
 
 
@@ -59,7 +64,7 @@ def test_many_sources_one_target_becomes_one_incident():
     flows = [flow(f"f{i}", src=f"10.0.3.{i}", offset=i) for i in range(60)]
     incidents = group_incidents(flows)
     assert len(incidents) == 1
-    assert incidents[0].pattern == PATTERN_FLOOD
+    assert incidents[0].pattern == PATTERN_FAN_IN
     assert incidents[0].distinct_src_ips == 60
 
 
@@ -67,7 +72,7 @@ def test_repeated_attempts_on_one_port_become_one_incident():
     flows = [flow(f"f{i}", offset=i) for i in range(12)]
     incidents = group_incidents(flows)
     assert len(incidents) == 1
-    assert incidents[0].pattern == PATTERN_REPEAT
+    assert incidents[0].pattern == PATTERN_REPEATED
 
 
 def test_an_isolated_flow_stays_its_own_incident():
@@ -75,7 +80,7 @@ def test_an_isolated_flow_stays_its_own_incident():
     exactly what an operator should see on its own."""
     incidents = group_incidents([flow("only")])
     assert len(incidents) == 1
-    assert incidents[0].pattern == PATTERN_SINGLE
+    assert incidents[0].pattern == PATTERN_ISOLATED
     assert incidents[0].n_flows == 1
 
 
@@ -104,7 +109,7 @@ def test_the_same_source_twice_in_a_day_is_two_incidents():
     evening = [flow(f"b{i}", dst=f"10.0.2.{i}", offset=20_000 + i) for i in range(10)]
     incidents = group_incidents(morning + evening)
     assert len(incidents) == 2
-    assert all(i.pattern == PATTERN_SCAN for i in incidents)
+    assert all(i.pattern == PATTERN_FAN_OUT for i in incidents)
 
 
 def test_a_group_stripped_by_a_stronger_one_is_not_emitted_as_its_old_shape():
@@ -113,7 +118,7 @@ def test_a_group_stripped_by_a_stronger_one_is_not_emitted_as_its_old_shape():
     has."""
     flood = [flow(f"d{i}", src=f"10.0.4.{i}", dst="10.0.2.99", offset=i) for i in range(40)]
     incidents = group_incidents(flood)
-    assert [i.pattern for i in incidents] == [PATTERN_FLOOD]
+    assert [i.pattern for i in incidents] == [PATTERN_FAN_IN]
 
 
 def test_worst_flow_is_surfaced_for_triage():

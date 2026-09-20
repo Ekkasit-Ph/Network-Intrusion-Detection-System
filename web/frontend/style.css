@@ -452,15 +452,15 @@ body {
 .inc-row:hover { background: var(--color-accent-100); }
 .inc-row[data-open="1"] { background: var(--color-accent-200); }
 
-/* The pattern badge is the one thing read at a glance, so the three that
-   mean "a host is doing something deliberate" share the accent and the
-   ungrouped one deliberately does not. */
+/* The badge names a shape, not an attack. The three grouped shapes share
+   the accent because they mean "these flows belong together"; the
+   ungrouped one does not, because it means the opposite. */
 .inc-tag {
   display: inline-block; padding: 2px 7px; font-size: 9.5px; letter-spacing: .09em;
   text-transform: uppercase; font-weight: 700; border: 1px solid currentColor;
 }
-.inc-tag[data-p="scan"], .inc-tag[data-p="flood"], .inc-tag[data-p="repeat"] { color: var(--color-accent); }
-.inc-tag[data-p="single"] { color: var(--color-neutral-600); }
+.inc-tag[data-p="fan_out"], .inc-tag[data-p="fan_in"], .inc-tag[data-p="repeated"] { color: var(--color-accent); }
+.inc-tag[data-p="isolated"] { color: var(--color-neutral-600); }
 
 .inc-detail { padding: 10px 12px 14px; border-bottom: 1px solid var(--color-divider); background: var(--color-neutral-100); }
 .inc-detail .lead { font-size: 12px; margin: 0 0 9px; line-height: 1.55; text-wrap: pretty; }

@@ -713,16 +713,21 @@ async function pollGaps() {
 // documentation/alert-aggregation.md for what the reduction is worth
 // (including where it is not worth much).
 
+// Shape, never attack type. The detector emits a reconstruction error and
+// no class, and the earlier names -- scan, flood -- read as classifications
+// it cannot make. Checked against the dataset's labels they were wrong as
+// well as unfounded: "flood"-shaped incidents held 71% scanning traffic and
+// almost no ddos. What a group does support is the count, which is a fact.
 const PATTERN_TEXT = {
-  scan:   (i) => `One source reaching ${i.distinct_dst_ips} host${i.distinct_dst_ips === 1 ? "" : "s"} on ${i.distinct_dst_ports} port${i.distinct_dst_ports === 1 ? "" : "s"}.`,
-  flood:  (i) => `${i.distinct_src_ips} sources converging on this one destination.`,
-  repeat: (i) => `The same source, destination and port, ${i.n_flows} times over.`,
-  single: () => "Not part of a larger pattern — one flow, on its own.",
+  fan_out:  (i) => `This source reached ${i.distinct_dst_ips} host${i.distinct_dst_ips === 1 ? "" : "s"} on ${i.distinct_dst_ports} port${i.distinct_dst_ports === 1 ? "" : "s"}. A sweep looks like this — so does a monitoring agent.`,
+  fan_in:   (i) => `${i.distinct_src_ips} sources reached this one destination. A flood looks like this — so does a popular server.`,
+  repeated: (i) => `The same source, destination and port, ${i.n_flows} times over.`,
+  isolated: () => "Not part of a larger pattern — one flow, on its own.",
 };
 
 function reach(i) {
-  if (i.pattern === "flood") return `${i.distinct_src_ips} sources → 1 target`;
-  if (i.pattern === "single") return "—";
+  if (i.pattern === "fan_in") return `${i.distinct_src_ips} sources → 1 destination`;
+  if (i.pattern === "isolated") return "—";
   return `${i.distinct_dst_ips} host${i.distinct_dst_ips === 1 ? "" : "s"} · ${i.distinct_dst_ports} port${i.distinct_dst_ports === 1 ? "" : "s"}`;
 }
 
@@ -753,7 +758,7 @@ function renderIncidents() {
       ? `${(summary.reduction * 100).toFixed(1)}%` : "—";
   $("#inc-patterns").innerHTML = Object.entries(summary.by_pattern)
     .sort((a, b) => b[1] - a[1])
-    .map(([p, n]) => `<span class="inc-tag" data-p="${esc(p)}">${esc(p)} ${esc(String(n))}</span>`)
+    .map(([p, n]) => `<span class="inc-tag" data-p="${esc(p)}">${esc(p.replace("_", "-"))} ${esc(String(n))}</span>`)
     .join("");
   $("#inc-truncated").hidden = !data.truncated;
 
@@ -773,7 +778,7 @@ function renderIncidents() {
       </div>` : "";
     return `
       <div class="inc-row" data-inc="${esc(String(idx))}" data-open="${open ? 1 : 0}">
-        <span><span class="inc-tag" data-p="${esc(i.pattern)}">${esc(i.pattern)}</span></span>
+        <span><span class="inc-tag" data-p="${esc(i.pattern)}">${esc(i.pattern.replace("_", "-"))}</span></span>
         <span class="mono trunc" title="${esc(i.key)}">${esc(i.key)}</span>
         <span class="num r">${esc(String(i.n_flows))}</span>
         <span class="mono muted" style="font-size:11px">${esc(span(i))}</span>

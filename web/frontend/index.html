@@ -245,10 +245,17 @@
 <div class="pad" id="view-incidents" role="tabpanel" aria-labelledby="tab-incidents" hidden>
   <p class="gaps-intro">
     The Live tab answers <em>what is arriving</em>. This answers <em>what is going on</em>, which is a
-    shorter list. A port sweep is one decision and four hundred flows; grouping them back together is
+    shorter list. A sweep is one decision and four hundred flows; grouping them back together is
     the difference between a console someone reads and one they stop reading.
     <strong>Every anomalous flow appears in exactly one incident</strong> — nothing is dropped, nothing
     counted twice.
+  </p>
+  <p class="gaps-intro" style="margin-top:-6px">
+    <strong>The pattern names describe shape, not attack type.</strong> The detector produces one
+    reconstruction error per flow and no class — it has no notion of “this is a DDoS”. <em>fan-out</em>
+    means one source reached many destinations, which is what a port scan looks like and also what a
+    monitoring agent looks like. Deciding which is a human judgement; this tab only groups the
+    flows that belong together and puts the worst one in reach.
   </p>
   <div class="inc-controls">
     <label class="inc-field"><span>Window</span>
