@@ -55,6 +55,10 @@ virsh list --all                      # ต้องไม่ error
 
 ## ขั้นที่ 1.5 — เก็บ VM ไว้บนดิสก์ลูกที่สอง
 
+> 🔴 **ต้องทำขั้นที่ 1 ให้เสร็จก่อน** — `/var/lib/libvirt/images` ซึ่งเป็นปลายทางของ bind mount
+> ถูกสร้างโดยแพ็กเกจ `libvirt-daemon-system` ถ้ายังไม่ได้ลง คำสั่ง `mount --bind` จะขึ้น
+> *"mount point does not exist"* ส่วนคำสั่ง `mkdir`/`chown`/`chmod` ข้างล่างทำก่อนได้ไม่มีปัญหา
+
 เครื่องนี้มี NVMe ลูกที่สอง (Samsung PM9A1) **ว่าง 419 GB จาก 469 GB** อยู่ที่ `/media/ekkasit/Games`
 เหมาะกว่าดิสก์หลักเพราะ **I/O ของ VM จะไม่ไปชนกับระบบปฏิบัติการ**
 
@@ -289,4 +293,6 @@ curl -s http://localhost:8080/stats/flow/1 | head -c 400
 | VM ช้ามาก | ไม่ได้ใช้ KVM → ตรวจ `virsh dumpxml mininet-nids \| grep kvm` |
 | เน็ตใน VM ไม่ทำงาน | `sudo virsh net-start default` บนเครื่องหลัก |
 | สร้าง VM แล้วขึ้น permission denied | bind mount ยังไม่ทำงาน → `findmnt /var/lib/libvirt/images` |
+| `mount --bind` ขึ้น mount point does not exist | ยังไม่ได้ลง KVM (ขั้นที่ 1) → `/var/lib/libvirt/images` ยังไม่ถูกสร้าง |
+| `virsh` / `virt-install` ไม่พบคำสั่ง | ขั้นที่ 1 ยังไม่ได้รัน → ตรวจด้วย `dpkg -s libvirt-daemon-system` |
 | บูตมาแล้ว VM หาย | ดิสก์ Games ไม่ได้ mount → `sudo mount -a` แล้วดู `journalctl -u libvirtd` |
