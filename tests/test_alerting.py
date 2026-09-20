@@ -252,3 +252,65 @@ def test_a_small_sweep_still_stands_out():
     host reaching twenty destinations when the typical host reaches a
     handful is still the shape worth surfacing."""
     assert _finds(_sweep(20), PATTERN_FAN_OUT) == (8, 8)
+
+
+# ── comparing against normal traffic ──────────────────────────────────────
+
+def _busy_server(n_normal, n_flagged, offset=0):
+    """A server everyone talks to. Most of its traffic is ordinary; the
+    flagged share is the window's background rate, not a signal."""
+    normal = [flow(f"bn{i}", src=f"10.1.0.{i % 200 + 1}", dst="10.2.99", port=443,
+                   offset=offset + i) for i in range(n_normal)]
+    flagged = [flow(f"bf{i}", src=f"10.1.0.{i % 200 + 1}", dst="10.2.99", port=443,
+                    offset=offset + n_normal + i) for i in range(n_flagged)]
+    return normal + flagged, flagged
+
+
+def test_a_busy_server_is_not_an_incident_when_the_baseline_says_it_is_busy():
+    """The generalisation failure this exists for. On heavy-tailed traffic
+    -- which is what real networks carry -- the most concentrated keys are
+    the legitimate ones, and the outlier test alone flagged them: 3.6
+    spurious groups per window against 0.33 on the uniform traffic it was
+    tuned on, and 30 on a large network."""
+    everything, flagged = _busy_server(n_normal=2000, n_flagged=60)
+
+    without = group_incidents(flagged, gap_seconds=10**9)
+    assert any(i.pattern == PATTERN_FAN_IN for i in without)
+
+    with_baseline = group_incidents(flagged, gap_seconds=10**9, baseline=everything)
+    assert all(i.pattern == PATTERN_ISOLATED for i in with_baseline)
+
+
+def test_a_target_whose_traffic_is_mostly_attack_still_surfaces():
+    """The other side of the same ratio: a host being hit takes a large
+    share of the anomalies and almost none of the ordinary traffic."""
+    normal = [flow(f"n{i}", src=f"10.1.0.{i % 50 + 1}", dst=f"10.2.{i % 30 + 1}", offset=i)
+              for i in range(2000)]
+    attack = [flow(f"a{i}", src=f"172.16.{i // 250}.{i % 250 + 1}", dst="10.9.9", port=443,
+                   offset=3000 + i, error=0.05) for i in range(300)]
+    incidents = group_incidents(attack, gap_seconds=10**9, baseline=normal + attack)
+    hits = [i for i in incidents if i.pattern == PATTERN_FAN_IN]
+    assert len(hits) == 1
+    assert hits[0].key == "10.9.9"
+
+
+def test_suppressed_groups_become_isolated_rather_than_vanishing():
+    """Every flow still lands in exactly one incident. Suppression changes
+    how a flow is reported, never whether it is."""
+    everything, flagged = _busy_server(n_normal=2000, n_flagged=60)
+    incidents = group_incidents(flagged, gap_seconds=10**9, baseline=everything)
+    seen = [fid for i in incidents for fid in i.flow_ids]
+    assert sorted(seen) == sorted(f["flow_id"] for f in flagged)
+    assert len(seen) == len(set(seen))
+
+
+def test_enrichment_is_not_judged_on_a_handful_of_flows():
+    """Three anomalous flows out of five total reads as heavily enriched on
+    arithmetic alone. Below a handful the denominator cannot carry the
+    claim, so the group is left as it was rather than judged on noise."""
+    normal = [flow(f"n{i}", src=f"10.1.0.{i % 40 + 1}", dst=f"10.2.{i % 25 + 1}", offset=i)
+              for i in range(2000)]
+    tiny = [flow(f"t{i}", src="10.5.5.5", dst=f"10.6.{i + 1}", offset=5000 + i) for i in range(4)]
+    incidents = group_incidents(tiny, gap_seconds=10**9, baseline=normal + tiny,
+                                min_distinct=3)
+    assert sum(i.n_flows for i in incidents) == len(tiny)

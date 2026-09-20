@@ -29,6 +29,10 @@ def get_incidents(
     window: str = Query(default="1h", description="One of 15m, 1h, 6h, 24h"),
     gap_seconds: int = Query(default=aggregate.DEFAULT_GAP_SECONDS, ge=10, le=86400),
     min_distinct: int = Query(default=aggregate.DEFAULT_MIN_DISTINCT, ge=2, le=1000),
+    min_enrichment: float = Query(default=aggregate.DEFAULT_MIN_ENRICHMENT, ge=0.0, le=100.0,
+                                  description="How much more of a key's traffic must be anomalous "
+                                              "than the window average. 0 disables the comparison "
+                                              "against normal traffic."),
     outlier_z: float = Query(default=aggregate.DEFAULT_OUTLIER_Z, ge=0.0, le=20.0,
                              description="How far above the typical key a count must sit. "
                                          "0 disables the test and reports every group that "
@@ -42,10 +46,16 @@ def get_incidents(
 
     since = (datetime.now(timezone.utc) - timedelta(minutes=_WINDOWS[window])).isoformat()
     with database.get_connection() as conn:
-        flows = database.get_anomalous_flows_since(conn, since=since, limit=limit)
+        flows = database.get_flows_since(conn, since=since, limit=limit)
+        # Every flow, not just the flagged ones: a busy server takes a large
+        # share of the anomalies because it takes a large share of
+        # everything, and only the ratio separates that from a target.
+        baseline = (database.get_flows_since(conn, since=since, limit=limit, anomalies_only=False)
+                    if min_enrichment > 0 else None)
 
     incidents = aggregate.group_incidents(
-        flows, min_distinct=min_distinct, gap_seconds=gap_seconds, outlier_z=outlier_z)
+        flows, min_distinct=min_distinct, gap_seconds=gap_seconds, outlier_z=outlier_z,
+        baseline=baseline, min_enrichment=min_enrichment)
     summary = aggregate.summarise(incidents, len(flows))
     return {
         "window": window,
@@ -53,7 +63,8 @@ def get_incidents(
         # A caller that hit the guard is looking at a partial window, and a
         # count derived from a truncated read would understate the burst it
         # exists to describe.
-        "truncated": len(flows) >= limit,
+        "truncated": len(flows) >= limit or (baseline is not None and len(baseline) >= limit),
+        "baseline_flows": len(baseline) if baseline is not None else None,
         "summary": summary,
         "incidents": [i.to_dict() for i in incidents],
     }

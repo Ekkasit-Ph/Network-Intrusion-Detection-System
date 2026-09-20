@@ -105,9 +105,13 @@ def get_flows_between(conn: sqlite3.Connection, since: str, until: str,
     return [dict(r) for r in rows]
 
 
-def get_anomalous_flows_since(conn: sqlite3.Connection, since: str,
-                              limit: int = 20000) -> list[dict[str, Any]]:
-    """Every anomalous flow in a window, oldest first, for aggregation.
+def get_flows_since(conn: sqlite3.Connection, since: str, limit: int = 20000,
+                    anomalies_only: bool = True) -> list[dict[str, Any]]:
+    """Flows in a window, oldest first, for aggregation.
+
+    `anomalies_only=False` gives the baseline the aggregator compares
+    against: a destination taking a large share of the anomalies is only
+    interesting if it is not also taking a large share of everything.
 
     Deliberately not capped the way the dashboard's other reads are. The
     aggregator's whole job is turning a burst into one line, and a burst
@@ -116,8 +120,9 @@ def get_anomalous_flows_since(conn: sqlite3.Connection, since: str,
     unbounded query, not a page size, which is why it is two orders of
     magnitude larger and why exceeding it is worth telling the caller about.
     """
+    clause = "f.is_anomaly = 1 AND " if anomalies_only else ""
     rows = conn.execute(
-        _FLOW_SELECT + " WHERE f.is_anomaly = 1 AND f.timestamp >= ?"
+        _FLOW_SELECT + f" WHERE {clause}f.timestamp >= ?"
         " ORDER BY f.timestamp ASC, f.rowid ASC LIMIT ?",
         (since, limit),
     ).fetchall()

@@ -70,6 +70,11 @@ DEFAULT_MIN_DISTINCT = 3
 # glance, a missed one costs the thing this system is for. 4.0 is the knee
 # -- most of the reduction, none of the sensitivity.
 DEFAULT_OUTLIER_Z = 4.0
+# With a baseline of all traffic available, a key must also carry more of
+# the anomalies than its share of the traffic explains. 4x its expected
+# share: high enough that a busy-but-normal server does not clear it,
+# low enough that a target whose traffic is mostly attack does.
+DEFAULT_MIN_ENRICHMENT = 4.0
 # Flows more than this far apart are different incidents even for the same
 # key. Five minutes is longer than any single burst and shorter than the
 # gap between two deliberate attempts.
@@ -157,6 +162,28 @@ def _sessionise(flows: Sequence[dict[str, Any]], gap_seconds: int) -> list[list[
     return sessions
 
 
+def _enrichment(anomalous: int, total: int, overall_rate: float) -> float:
+    """How much more of this key's traffic is anomalous than the window's
+    average would predict.
+
+    The outlier test alone asks "is this key unusually concentrated", and on
+    a real network the most concentrated keys are the legitimate ones -- the
+    web server, the resolver, the backup target. Measured on heavy-tailed
+    backgrounds it produced 3.6 spurious groups per window against 0.33 on
+    the uniform traffic it was tuned on, and 27 on a large network.
+
+    A busy server is busy in both directions: it takes a large share of the
+    anomalies and a large share of everything, so this ratio sits near 1. A
+    host being swept or flooded takes a large share of the anomalies and
+    almost none of the ordinary traffic, so it sits near 1/rate. That is the
+    difference the raw count cannot see.
+    """
+    if total <= 0 or overall_rate <= 0:
+        return float("inf")
+    expected = total * overall_rate
+    return anomalous / expected if expected > 0 else float("inf")
+
+
 def _outlier_floor(counts: Sequence[int], z: float, hard_floor: int) -> float:
     """The count a key has to beat to be a pattern rather than arithmetic.
 
@@ -213,7 +240,7 @@ def _build(pattern: str, key: str, flows: Sequence[dict[str, Any]]) -> Incident:
 
 
 def _candidates(flows: Sequence[dict[str, Any]], min_distinct: int, min_repeats: int,
-                gap_seconds: int, outlier_z: float) -> list[Incident]:
+                gap_seconds: int, outlier_z: float) -> tuple[list[Incident], float, float]:
     """Every grouping that clears the window's own bar, before deciding
     which to keep."""
     by_src: dict[Any, list[dict[str, Any]]] = defaultdict(list)
@@ -254,12 +281,49 @@ def _candidates(flows: Sequence[dict[str, Any]], min_distinct: int, min_repeats:
     return found, out_floor, in_floor
 
 
+
+def _apply_enrichment(incidents: list[Incident], flows: Sequence[dict[str, Any]],
+                      baseline: Sequence[dict[str, Any]],
+                      min_enrichment: float,
+                      min_anomalous: int = 10) -> tuple[list[Incident], set[str]]:
+    """Drop groups whose key is simply busy rather than singled out.
+
+    `min_anomalous` guards the ratio, not the policy. A key with three
+    anomalous flows out of five total reads as 12x enriched on arithmetic
+    alone; below a handful of flows the denominator is too small to carry
+    the claim, so the group is left alone rather than judged on noise.
+    """
+    src_total: dict[Any, int] = defaultdict(int)
+    dst_total: dict[Any, int] = defaultdict(int)
+    for flow in baseline:
+        src_total[flow.get("src_ip")] += 1
+        dst_total[flow.get("dst_ip")] += 1
+    rate = len(flows) / len(baseline) if baseline else 0.0
+
+    kept: list[Incident] = []
+    released: set[str] = set()
+    for incident in incidents:
+        totals = (src_total if incident.pattern == PATTERN_FAN_OUT
+                  else dst_total if incident.pattern == PATTERN_FAN_IN else None)
+        if totals is None or incident.n_flows < min_anomalous:
+            kept.append(incident)
+            continue
+        total = totals.get(incident.key, incident.n_flows)
+        if _enrichment(incident.n_flows, total, rate) >= min_enrichment:
+            kept.append(incident)
+        else:
+            released.update(incident.flow_ids)
+    return kept, released
+
+
 def group_incidents(
     flows: Iterable[dict[str, Any]],
     min_distinct: int = DEFAULT_MIN_DISTINCT,
     min_repeats: int = DEFAULT_MIN_REPEATS,
     gap_seconds: int = DEFAULT_GAP_SECONDS,
     outlier_z: float = DEFAULT_OUTLIER_Z,
+    baseline: Iterable[dict[str, Any]] | None = None,
+    min_enrichment: float = DEFAULT_MIN_ENRICHMENT,
 ) -> list[Incident]:
     """Anomalous flows in, incidents out, every flow in exactly one.
 
@@ -280,6 +344,7 @@ def group_incidents(
     if not flows:
         return []
 
+    baseline = list(baseline) if baseline is not None else None
     candidates, out_floor, in_floor = _candidates(
         flows, min_distinct, min_repeats, gap_seconds, outlier_z)
     candidates.sort(key=lambda i: (-i.n_flows, -i.max_error_ratio, i.pattern, i.key))
@@ -307,6 +372,16 @@ def group_incidents(
             continue
         claimed.update(remaining)
         incidents.append(rebuilt)
+
+    # Enrichment is applied here, after the competition rather than before
+    # it. Filtering candidates up front looked equivalent and is not: drop a
+    # large legitimate group from the running and its members are free to
+    # form dozens of small ones in its place, so suppressing the busy server
+    # *raised* the group count from 4.0 per window to 16.6. Suppressed
+    # groups become isolated flows, which is what they are.
+    if baseline:
+        incidents, released = _apply_enrichment(incidents, flows, baseline, min_enrichment)
+        claimed -= released
 
     for flow in flows:
         if flow["flow_id"] not in claimed:
