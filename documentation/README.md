@@ -23,13 +23,10 @@
 |---|---|
 | [guides/deployment-runbook.md](guides/deployment-runbook.md) | คู่มือนำไปใช้จริง: เริ่มใช้ครั้งแรก + ขั้นตอนเทรนใหม่เมื่อเจอ domain shift |
 | [guides/dashboard-spec.md](guides/dashboard-spec.md) | สเปกหน้าแดชบอร์ด |
-| [guides/mininet-vm-setup.md](guides/mininet-vm-setup.md) | ติดตั้ง VM สำหรับ Mininet บน Pop!_OS 24.04 |
-| [guides/mininet-integration-run.md](guides/mininet-integration-run.md) | ผลการรันท่อทั้ง 6 โมดูลบน Mininet |
-| [guides/mininet-live-demo.md](guides/mininet-live-demo.md) | เดโมสด: โมเดลเทรนเฉพาะเครือข่าย + ข้อค้นพบ domain shift / brute-force |
-| [guides/demo-script.md](guides/demo-script.md) | สคริปต์พูดเดโมสดตอนนำเสนอ (~6–8 นาที) |
 
-> คู่มือ GNS3 (เครือข่ายจำลองที่ลง OS จริง) อยู่ที่
-> [`../network_simulation/gns3/gns3-setup.md`](../network_simulation/gns3/gns3-setup.md)
+> คู่มือเครือข่ายจำลอง (Mininet VM, GNS3 ที่ลง OS จริง, เดโมสด) และสคริปต์
+> simulation ทั้งหมดอยู่บน branch **`development`** — เป็นเครื่องมือตอนพัฒนา/ทดสอบ
+> ไม่ใช่ส่วนที่ผู้ใช้ติดตั้ง (`git checkout development`)
 
 ---
 

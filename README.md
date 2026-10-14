@@ -140,22 +140,20 @@ explanation can be checked rather than taken on faith.
 | 4 | explain | Kernel SHAP, **on request only** — never per-flow in real time | built |
 | 5 | [web](web/README.md) | FastAPI + SQLite + a dependency-free frontend | built |
 | 6 | [firewall_check](source/firewall_check/README.md) | compares alerts against the policy; **read-only, never blocks** | built |
-| — | [network_simulation](network_simulation/README.md) | Mininet topology + Ryu app, plus a real-OS GNS3 lab | **integration-tested** |
 
-All six modules were run end to end on a live virtual network — first on
+The reference firewall policy module 6 consumes lives in
+[`network_simulation/firewall_rules.py`](network_simulation/firewall_rules.py).
+
+All six modules were also run end to end on a live virtual network — first on
 Mininet (OpenFlow switch + Ryu firewall, synthetic benign + three attacks),
 then on a GNS3 topology running **real Alpine Linux OS** on each node, with a
 DDoS botnet and the firewall enforcing OpenFlow drop rules. The sensor sees
-traffic passively through a mirror port and never blocks. What this surfaced —
-the domain-shift collapse (NF-ToN-IoT-v2 model scored AUROC 0.000 on the new
+traffic passively through a mirror port and never blocks. That surfaced the
+domain-shift collapse (the NF-ToN-IoT-v2 model scored AUROC 0.000 on the new
 network until retrained), the hub's immunity to fan-in detection, and the
-near-benign shape of SSH brute-force — is written up in
-[documentation/guides/mininet-live-demo.md](documentation/guides/mininet-live-demo.md).
-
-`network_simulation/` needs Mininet (root + OS packages) and Ryu (which does
-not support Python 3.12); the GNS3 lab additionally needs QEMU/libvirt. Only
-`firewall_rules.py` runs standalone — and it is the piece that matters,
-because it is the seam module 6 consumes.
+near-benign shape of SSH brute-force. The simulation code, the GNS3 lab and
+the write-ups of those runs live on the **`development`** branch — they are
+testing tools, not part of what you install (`git checkout development`).
 
 ## Three features we added ourselves
 
@@ -223,21 +221,21 @@ web/
 ├── backend/             FastAPI routers, replay_demo, live_capture
 ├── frontend/            HTML/CSS/JS — no framework, no build step
 └── database/            SQLite schema + init
-network_simulation/      Mininet topology, Ryu app, reference firewall policy
+network_simulation/      reference firewall policy (module 6's input)
 artifacts/               trained model, scaler, encoders, metrics reports
 documentation/           full spec, model development log, limitations, run guide
-tests/                   pytest — synthetic fixtures, no dataset needed
 ```
 
 ## Tests
 
+The test suite (24 modules, driven by a small synthetic DataFrame shaped like
+NF-ToN-IoT-v2 — no dataset or trained model needed) lives on the
+**`development`** branch, alongside the simulation and benchmark tooling:
+
 ```bash
+git checkout development
 pytest
 ```
-
-20 test modules, all driven by a small synthetic DataFrame shaped like
-NF-ToN-IoT-v2 ([`tests/conftest.py`](tests/conftest.py)). They need neither
-the 2.5 GB dataset nor a trained model, and run in seconds.
 
 ## Rules this project does not break
 

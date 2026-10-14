@@ -28,11 +28,11 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
 # Application code.
 COPY source/ source/
 COPY web/ web/
-# Only firewall_rules.py from here, and only because module 6 needs a rule
-# file to compare against -- `python -m network_simulation.firewall_rules
-# --format ryu` is a step in the demo. The rest of the directory
-# (topology.py, ryu_app.py, attack_scripts) needs Mininet and Ryu, neither
-# of which is in this image, so copying it would only invite someone to try.
+# Only firewall_rules.py, and only because module 6 needs a rule file to
+# compare against -- `python -m network_simulation.firewall_rules --format ryu`
+# is a step in the demo. The rest of the simulation (topology.py, ryu_app.py,
+# the GNS3 lab, attack scripts) needs Mininet and Ryu and lives on the
+# `development` branch, not in this image.
 COPY network_simulation/__init__.py network_simulation/firewall_rules.py network_simulation/
 
 # Deployed model + its paired preprocessing artifacts (scaler, encoders) --

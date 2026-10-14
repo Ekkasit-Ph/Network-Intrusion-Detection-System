@@ -24,8 +24,7 @@ stylistic one. The detector's measured false-positive rate is about 5%, so
 wiring it to a blocking action would drop roughly one legitimate flow in
 twenty — a denial of service inflicted by the tool meant to prevent one.
 This module reads rules and writes rows; nothing here opens a socket to a
-controller, and
-[`tests/test_firewall_check.py`](../../tests/test_firewall_check.py)
+controller, and `tests/test_firewall_check.py` (on the `development` branch)
 asserts the `flows` table is byte-identical before and after a run.
 
 ## Two things that decide every verdict

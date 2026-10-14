@@ -22,7 +22,7 @@ NVIDIA GeForce GTX 1650 4GB · torch 2.13.0 · Pop!_OS 24.04 (Linux 7.0.11)
 | CPU 8 threads | 8,796/s | 20,385/s | 2,131,340/s | 0.067 / 0.083 ms | 8.7 / 10.2 ms | 3.1 MB |
 | GPU | 8,630/s | 20,178/s | 5,033,637/s | **0.136 / 0.149 ms** | 6.5 / 7.0 ms | **90.8 MB** |
 
-ขั้นที่ 1–2 วัดบน pcap ที่สร้างขึ้น ([`scripts/synthetic_pcap.py`](../../scripts/synthetic_pcap.py))
+ขั้นที่ 1–2 วัดบน pcap ที่สร้างขึ้น (`scripts/synthetic_pcap.py` — บน branch `development`)
 เพราะโครงงานยังไม่มี capture จริง · ขั้นที่ 3–4 วัดบนแถวจริงจากชุดทดสอบ
 
 ## สี่ข้อสรุป

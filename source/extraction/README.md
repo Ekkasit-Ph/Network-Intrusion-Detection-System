@@ -234,9 +234,9 @@ behavioural state.
 "distinct destinations in this source's last W flows" by grouping a whole
 file; serving keeps one bounded window per source, updated as flows
 arrive. Same feature by a different algorithm, which is exactly the kind of
-pair that drifts silently — so
-[`tests/test_online.py`](../../tests/test_online.py) runs both over the
-same rows and asserts they agree to 1e-9, feature by feature.
+pair that drifts silently — so `tests/test_online.py` (on the `development`
+branch) runs both over the same rows and asserts they agree to 1e-9, feature
+by feature.
 
 Two things worth knowing before trusting live output:
 
@@ -252,7 +252,7 @@ Two things worth knowing before trusting live output:
 
 ## Tests
 
-[`tests/test_extraction.py`](../../tests/test_extraction.py) builds a pcap
+`tests/test_extraction.py` (on the `development` branch) builds a pcap
 whose every header value is chosen by the test, then asserts each extracted
 field against a known number — a parser that returns a plausible-but-wrong
 value is exactly the failure this module has to be protected from, since
