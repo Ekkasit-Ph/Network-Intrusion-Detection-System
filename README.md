@@ -150,8 +150,7 @@ traffic passively through a mirror port and never blocks. What this surfaced —
 the domain-shift collapse (NF-ToN-IoT-v2 model scored AUROC 0.000 on the new
 network until retrained), the hub's immunity to fan-in detection, and the
 near-benign shape of SSH brute-force — is written up in
-[documentation/guides/mininet-live-demo.md](documentation/guides/mininet-live-demo.md)
-and [documentation/project-master-summary.md](documentation/project-master-summary.md).
+[documentation/guides/mininet-live-demo.md](documentation/guides/mininet-live-demo.md).
 
 `network_simulation/` needs Mininet (root + OS packages) and Ryu (which does
 not support Python 3.12); the GNS3 lab additionally needs QEMU/libvirt. Only
@@ -255,15 +254,13 @@ the 2.5 GB dataset nor a trained model, and run in seconds.
 ## Documentation
 
 Start at the index — [`documentation/README.md`](documentation/README.md) —
-which maps every document into *guides/*, *evaluation/* and *thesis-notes/*.
-The ones worth opening first:
+which maps every document into *guides/* and *evaluation/*. The ones worth
+opening first:
 
 | file | what's in it |
 |---|---|
-| [`project-master-summary.md`](documentation/project-master-summary.md) | the whole project in one place — every module, result, and finding |
-| [`technical-report.md`](documentation/technical-report.md) | deep dive: feature extraction, per-attack detection, the three behavioural features |
 | [`PROJECT.md`](documentation/PROJECT.md) | full specification and design decisions |
 | [`how-to-run.md`](documentation/how-to-run.md) | run instructions, venv and Docker |
 | [`MODEL_DEVELOPMENT.md`](documentation/evaluation/MODEL_DEVELOPMENT.md) | what was tried, what worked, what did not |
 | [`dataset-limitations.md`](documentation/evaluation/dataset-limitations.md) | measured caveats behind every reported number |
-| [`qa-briefing.md`](documentation/thesis-notes/qa-briefing.md) | system facts, organised for defence questions |
+| [`deployment-runbook.md`](documentation/guides/deployment-runbook.md) | deploy for real: first run, and retraining when the network changes |

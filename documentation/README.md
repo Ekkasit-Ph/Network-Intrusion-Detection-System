@@ -1,19 +1,17 @@
-# เอกสารประกอบโปรเจกต์ FlowSentry
+# เอกสารประกอบระบบ FlowSentry
 
-ดัชนีเอกสารทั้งหมดของระบบตรวจจับการบุกรุกเครือข่าย IoT
+ดัชนีเอกสารของระบบตรวจจับการบุกรุกเครือข่าย IoT
 (Denoising Autoencoder + SHAP) จัดกลุ่มตามการใช้งาน
 
-> อยากเริ่มรันระบบก่อน? ดู [how-to-run.md](how-to-run.md)
-> อยากเห็นภาพรวมทั้งโปรเจกต์ในที่เดียว? ดู [project-master-summary.md](project-master-summary.md)
+> อยากเริ่มรันระบบ? ดู [how-to-run.md](how-to-run.md)
+> อยากเข้าใจสเปกและการออกแบบทั้งหมด? ดู [PROJECT.md](PROJECT.md)
 
 ---
 
-## 📄 เอกสารหลัก (อ่านก่อน)
+## 📄 เอกสารหลัก
 
 | ไฟล์ | เนื้อหา |
 |---|---|
-| [project-master-summary.md](project-master-summary.md) | **สรุปทั้งโปรเจกต์ในที่เดียว** — ทุกโมดูล ทุกผลลัพธ์ ทุกข้อค้นพบ พร้อมนำไปเขียนเล่ม |
-| [technical-report.md](technical-report.md) | รายงานเชิงลึก — การสกัดฟีเจอร์, การตรวจจับแยกตามการโจมตี, 3 ฟีเจอร์เชิงพฤติกรรม |
 | [PROJECT.md](PROJECT.md) | สเปกฉบับเต็มและการตัดสินใจเชิงออกแบบ |
 | [how-to-run.md](how-to-run.md) | วิธีรันระบบ ทั้งแบบ venv และ Docker |
 
@@ -45,25 +43,3 @@
 | [evaluation/explanation-quality.md](evaluation/explanation-quality.md) | คุณภาพคำอธิบาย SHAP (local accuracy) |
 | [evaluation/alert-aggregation.md](evaluation/alert-aggregation.md) | การรวมกลุ่มการแจ้งเตือน (fan-out / fan-in / repeated) |
 | [evaluation/protocol-threshold-experiment.md](evaluation/protocol-threshold-experiment.md) | การทดลอง threshold แยกตามโปรโตคอล — **ผลเป็นลบ ไม่นำไปใช้** |
-
----
-
-## 📝 thesis-notes/ — บันทึกการเขียนเล่ม/นำเสนอ
-
-เอกสารร่าง สำหรับเขียนเล่มรายงานและเตรียมนำเสนอ (ไม่ใช่สเปกระบบ)
-
-| ไฟล์ | เนื้อหา |
-|---|---|
-| [thesis-notes/progress-2-summary.md](thesis-notes/progress-2-summary.md) | สรุปความก้าวหน้าครั้งที่ 2 (สำหรับอาจารย์) |
-| [thesis-notes/professor-comments.md](thesis-notes/professor-comments.md) | คอมเมนต์อาจารย์จาก progress 1 |
-| [thesis-notes/roadmap.md](thesis-notes/roadmap.md) | แผนงานถึงปลายภาค |
-| [thesis-notes/qa-briefing.md](thesis-notes/qa-briefing.md) | ข้อมูลระบบจัดระเบียบไว้ตอบคำถามป้องกัน |
-| [thesis-notes/progress-report-data.md](thesis-notes/progress-report-data.md) | ข้อมูลดิบสำหรับเขียนเล่ม |
-| [thesis-notes/report-paste-ready.md](thesis-notes/report-paste-ready.md) | ข้อความพร้อมคัดลอกลงเล่ม |
-| [thesis-notes/report-corrections.md](thesis-notes/report-corrections.md) | ข้อความแก้ไขสำหรับเล่ม |
-| [thesis-notes/report-review.md](thesis-notes/report-review.md) | ผลตรวจเล่มรายงาน |
-| [thesis-notes/report-review-v3.md](thesis-notes/report-review-v3.md) | ผลตรวจเล่มฉบับล่าสุด (เน้นหัวข้อ 4.4) |
-| [thesis-notes/slide-script.md](thesis-notes/slide-script.md) | บทพูดนำเสนอ 19 สไลด์ (~15 นาที) |
-| [thesis-notes/slide-prompt.md](thesis-notes/slide-prompt.md) | prompt ทำสไลด์ด้วย Claude Design |
-| [thesis-notes/architecture-diagram-prompt.md](thesis-notes/architecture-diagram-prompt.md) | prompt วาดแผนภาพสถาปัตยกรรม |
-| [thesis-notes/topology-diagram-prompt.md](thesis-notes/topology-diagram-prompt.md) | prompt วาดแผนภาพ topology |
