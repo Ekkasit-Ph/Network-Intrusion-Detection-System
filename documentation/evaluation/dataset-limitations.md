@@ -86,7 +86,7 @@ The exporter did not meaningfully populate it. Consequences:
   ~1e304, which `source/preprocessing/clean.py` caps at the 99th
   percentile.
 
-Detail and method: [`../source/extraction/README.md`](../source/extraction/README.md).
+Detail and method: [`../source/extraction/README.md`](../../source/extraction/README.md).
 
 ## 5. `L7_PROTO` is unclassified on 97.5% of UDP/53 flows
 
@@ -116,7 +116,7 @@ feature value would be influenced by the same host's attack flows elsewhere
 in the file, including ones that later land in val/test.
 
 Reasoning in full:
-[`../source/preprocessing/engineer_features.py`](../source/preprocessing/engineer_features.py).
+[`../source/preprocessing/engineer_features.py`](../../source/preprocessing/engineer_features.py).
 
 ## 7. No flow-start timestamp
 

@@ -14,9 +14,9 @@
 | แทร็กที่สัญญาไว้ | สถานะ | อยู่ในแผนข้อ |
 |---|---|---|
 | public dataset | ✅ เสร็จ | — |
-| simulated attack | ✅ **เสร็จ 20 ก.ย. 2569** → [mininet-integration-run.md](mininet-integration-run.md) | ~~3~~ |
-| explainability evaluation | ✅ **เสร็จ 20 ก.ย. 2569** → [explanation-quality.md](explanation-quality.md) | ~~2~~ |
-| resource usage | ✅ **เสร็จ 19 ก.ย. 2569** → [resource-benchmark.md](resource-benchmark.md) | ~~1~~ |
+| simulated attack | ✅ **เสร็จ 20 ก.ย. 2569** → [mininet-integration-run.md](../guides/mininet-integration-run.md) | ~~3~~ |
+| explainability evaluation | ✅ **เสร็จ 20 ก.ย. 2569** → [explanation-quality.md](../evaluation/explanation-quality.md) | ~~2~~ |
+| resource usage | ✅ **เสร็จ 19 ก.ย. 2569** → [resource-benchmark.md](../evaluation/resource-benchmark.md) | ~~1~~ |
 
 **ครบทั้ง 4 แทร็กแล้ว** — งานที่ทำไปเจอบั๊กจริง 3 ตัว (nfstream หด CPU affinity,
 ShapExplainer กินแรม 2 GB, nsamples=100 ให้คำอธิบายที่ไม่เสถียร) และการรัน Mininet
@@ -57,7 +57,7 @@ ShapExplainer กินแรม 2 GB, nsamples=100 ให้คำอธิบ�
 |---|---|---|---|
 | 4 | **เทียบ baseline** — *ข้ามไปก่อนตามที่ตกลง* | ตอบ *"ทำไมต้อง autoencoder"* ด้วยตัวเลข | 3 วัน |
 | 2 | ✅ **ประเมิน explainability** | ปิดแทร็กที่สัญญาไว้ · เจอว่า nsamples=100 ใช้ไม่ได้ | เสร็จแล้ว |
-| 5 | ✅ **threshold แยกตามโปรโตคอล** | **ทดลองแล้ว ผลเป็นลบ ไม่นำไปใช้** → [protocol-threshold-experiment.md](protocol-threshold-experiment.md) | เสร็จแล้ว |
+| 5 | ✅ **threshold แยกตามโปรโตคอล** | **ทดลองแล้ว ผลเป็นลบ ไม่นำไปใช้** → [protocol-threshold-experiment.md](../evaluation/protocol-threshold-experiment.md) | เสร็จแล้ว |
 
 **ข้อ 4 เทียบกับอะไร** — ทุกตัวฝึกด้วย benign อย่างเดียวเหมือนกัน วัดที่ FPR 5% เท่ากัน
 - Isolation Forest (scikit-learn มีอยู่แล้ว ไม่ต้องลงอะไรเพิ่ม)
@@ -108,7 +108,7 @@ ShapExplainer กินแรม 2 GB, nsamples=100 ให้คำอธิบ�
 
 | งาน | ทำไมถึงเพิ่ม | สถานะ |
 |---|---|---|
-| **alert aggregation** | คำนวณแล้วพบว่า FPR 4.97% = 9,100 การแจ้งเตือน/วัน ที่ 100k flow/วัน ซึ่งคนดูไม่ไหว | ✅ [alert-aggregation.md](alert-aggregation.md) · มีแท็บ Incidents บนแดชบอร์ดแล้ว |
+| **alert aggregation** | คำนวณแล้วพบว่า FPR 4.97% = 9,100 การแจ้งเตือน/วัน ที่ 100k flow/วัน ซึ่งคนดูไม่ไหว | ✅ [alert-aggregation.md](../evaluation/alert-aggregation.md) · มีแท็บ Incidents บนแดชบอร์ดแล้ว |
 
 ## สิ่งที่ตัดทิ้ง และเหตุผล
 

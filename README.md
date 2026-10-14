@@ -69,7 +69,7 @@ Excluding UDP entirely and re-scoring at the same frozen threshold:
 Read 87.59% as the headline and 94.10% as what the detector does on traffic
 whose labels can be trusted. Full analysis, including what this does *not*
 excuse:
-[`documentation/dataset-limitations.md`](documentation/dataset-limitations.md).
+[`documentation/dataset-limitations.md`](documentation/evaluation/dataset-limitations.md).
 
 ## Quick start
 
@@ -140,15 +140,23 @@ explanation can be checked rather than taken on faith.
 | 4 | explain | Kernel SHAP, **on request only** — never per-flow in real time | built |
 | 5 | [web](web/README.md) | FastAPI + SQLite + a dependency-free frontend | built |
 | 6 | [firewall_check](source/firewall_check/README.md) | compares alerts against the policy; **read-only, never blocks** | built |
-| — | [network_simulation](network_simulation/README.md) | Mininet topology + Ryu app | **written, not yet run** |
+| — | [network_simulation](network_simulation/README.md) | Mininet topology + Ryu app, plus a real-OS GNS3 lab | **integration-tested** |
 
-Module 1 has not been verified against a live capture: there is no pcap in
-this project, and `verify_skew.py` only simulates the train/serve skew by
-substituting columns. Closing that gap is the main remaining work.
+All six modules were run end to end on a live virtual network — first on
+Mininet (OpenFlow switch + Ryu firewall, synthetic benign + three attacks),
+then on a GNS3 topology running **real Alpine Linux OS** on each node, with a
+DDoS botnet and the firewall enforcing OpenFlow drop rules. The sensor sees
+traffic passively through a mirror port and never blocks. What this surfaced —
+the domain-shift collapse (NF-ToN-IoT-v2 model scored AUROC 0.000 on the new
+network until retrained), the hub's immunity to fan-in detection, and the
+near-benign shape of SSH brute-force — is written up in
+[documentation/guides/mininet-live-demo.md](documentation/guides/mininet-live-demo.md)
+and [documentation/project-master-summary.md](documentation/project-master-summary.md).
 
 `network_simulation/` needs Mininet (root + OS packages) and Ryu (which does
-not support Python 3.12). Only `firewall_rules.py` runs standalone — and it
-is the piece that matters, because it is the seam module 6 consumes.
+not support Python 3.12); the GNS3 lab additionally needs QEMU/libvirt. Only
+`firewall_rules.py` runs standalone — and it is the piece that matters,
+because it is the seam module 6 consumes.
 
 ## Three features we added ourselves
 
@@ -246,10 +254,16 @@ the 2.5 GB dataset nor a trained model, and run in seconds.
 
 ## Documentation
 
+Start at the index — [`documentation/README.md`](documentation/README.md) —
+which maps every document into *guides/*, *evaluation/* and *thesis-notes/*.
+The ones worth opening first:
+
 | file | what's in it |
 |---|---|
+| [`project-master-summary.md`](documentation/project-master-summary.md) | the whole project in one place — every module, result, and finding |
+| [`technical-report.md`](documentation/technical-report.md) | deep dive: feature extraction, per-attack detection, the three behavioural features |
 | [`PROJECT.md`](documentation/PROJECT.md) | full specification and design decisions |
-| [`MODEL_DEVELOPMENT.md`](documentation/MODEL_DEVELOPMENT.md) | what was tried, what worked, what did not |
-| [`dataset-limitations.md`](documentation/dataset-limitations.md) | measured caveats behind every reported number |
 | [`how-to-run.md`](documentation/how-to-run.md) | run instructions, venv and Docker |
-| [`qa-briefing.md`](documentation/qa-briefing.md) | system facts, organised for defence questions |
+| [`MODEL_DEVELOPMENT.md`](documentation/evaluation/MODEL_DEVELOPMENT.md) | what was tried, what worked, what did not |
+| [`dataset-limitations.md`](documentation/evaluation/dataset-limitations.md) | measured caveats behind every reported number |
+| [`qa-briefing.md`](documentation/thesis-notes/qa-briefing.md) | system facts, organised for defence questions |

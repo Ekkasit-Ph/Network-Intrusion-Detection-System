@@ -10,6 +10,16 @@ data/**/*.csv
 data/**/*.db
 data/*.db
 
+# ...except the Mininet-demo dataset: 254 flows, ~150KB total (splits + the
+# raw labelled CSV). Small, not regenerable without the VM, and the paired
+# artifacts/models/mininet-demo model was trained on exactly these splits.
+!data/mininet_demo/**
+
+# ...and the GNS3 integration-test dataset: captured on the real-OS (Alpine)
+# GNS3 topology, ~200KB, paired with artifacts/models/gns3-demo. Same reason
+# as above -- not regenerable without the GNS3 lab.
+!data/gns3_demo/**
+
 # Window-size / feature sweeps: many variants of the same split (~1.7GB),
 # none of them needed to reproduce the deployed model.
 data/processed_experiments/
@@ -33,6 +43,20 @@ artifacts/**/*.csv
 # a version-controlled artifact this small should cost.
 !artifacts/models/optuna-denoising-50/**
 !artifacts/preprocessing_w50/**
+
+# ...and the Mininet-demo model (documentation/guides/mininet-live-demo.md):
+# the network-specific autoencoder that turns the NF-ToN-IoT-v2 AUROC 0.000
+# into 0.998. Same small footprint, and the live demo cannot be reproduced
+# without it, its preprocessing artifacts, and the tiny captured dataset below.
+!artifacts/models/mininet-demo/**
+!artifacts/preprocessing_mininet/**
+
+# ...and the GNS3-demo model + preprocessing: the autoencoder retrained on the
+# GNS3 topology for the integration test (network_simulation/gns3/). Paired
+# with data/gns3_demo above; same small footprint, not regenerable without the
+# lab.
+!artifacts/models/gns3-demo/**
+!artifacts/preprocessing_gns3/**
 
 # ...and the resource benchmark, which is a measurement rather than a
 # generated model file. The rule above is about not versioning large

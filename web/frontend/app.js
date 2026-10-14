@@ -654,7 +654,7 @@ function renderGaps() {
          data-selected="${state.shapFlow && state.shapFlow.flow_id === g.flow_id ? 1 : 0}">
       <span class="num muted">${esc(clock(g.timestamp))}</span>
       <span class="mono trunc">${esc(g.flow_id)}</span>
-      <span class="mono trunc">${esc(g.src_ip)} → ${esc(g.dst_ip)}</span>
+      <span class="mono trunc">${esc(g.src_ip)}:${esc(g.src_port)} → ${esc(g.dst_ip)}:${esc(g.dst_port)}</span>
       <span class="num r">${esc(f6(g.reconstruction_error))}</span>
       <span class="mono trunc muted" style="font-size:11px">${esc(g.firewall_action_logged || "—")}</span>
       <span class="r"><span class="tag ${cls(g)}">${esc(assess(g))}</span></span>

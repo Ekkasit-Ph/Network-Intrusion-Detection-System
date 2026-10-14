@@ -1,6 +1,6 @@
 # การรวมกลุ่มการแจ้งเตือน (alert aggregation)
 
-โมดูล: [`source/alerting/aggregate.py`](../source/alerting/aggregate.py) · API: `GET /incidents`
+โมดูล: [`source/alerting/aggregate.py`](../../source/alerting/aggregate.py) · API: `GET /incidents`
 
 ## ปัญหาที่แก้
 
@@ -200,7 +200,7 @@ enrichment = (flow ผิดปกติของ key) / (ทราฟฟิก�
 
 ### ⚠️ ผลกระทบต่อการสาธิต — ต้องรู้ก่อนขึ้นเวที
 
-`replay_demo` สุ่มหมายเลข IP จากพูลคงที่ ([`replay_demo.py:49`](../web/backend/replay_demo.py#L49))
+`replay_demo` สุ่มหมายเลข IP จากพูลคงที่ ([`replay_demo.py:49`](../../web/backend/replay_demo.py#L49))
 **ข้อมูลสาธิตจึงไม่มีโครงสร้างการโจมตีในระดับ IP เลยตั้งแต่ต้น**
 
 | บนข้อมูล replay 161 flow | incident | ป้าย |
@@ -211,7 +211,7 @@ enrichment = (flow ผิดปกติของ key) / (ทราฟฟิก�
 ตัวเลข "ลด 78.9%" ที่เคยแสดงบนหน้าจอคือ**สัญญาณรบกวนล้วน ๆ** ตอนนี้แสดง "ลด 6.8%" ซึ่งถูกต้อง
 
 **ถ้าจะสาธิตความสามารถของการรวมกลุ่มให้เห็นจริง ต้องใช้ทราฟฟิกที่มีโครงสร้างจริง**
-ซึ่งก็คือสิ่งที่ Mininet จะให้ ([roadmap.md](roadmap.md) ข้อ 3) — หรือใช้ตัวเลขจากชุดข้อมูลจริงข้างบนแทน
+ซึ่งก็คือสิ่งที่ Mininet จะให้ ([roadmap.md](../thesis-notes/roadmap.md) ข้อ 3) — หรือใช้ตัวเลขจากชุดข้อมูลจริงข้างบนแทน
 
 ## หน้าจอบนแดชบอร์ด
 

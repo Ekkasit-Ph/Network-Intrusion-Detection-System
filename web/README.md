@@ -1,7 +1,7 @@
 # web/ — dashboard application (module 5) + shared storage layer
 
 Everything that serves or stores the detection results lives here, grouped
-apart from the ML pipeline in [`source/`](../source/):
+apart from the ML pipeline in [`source/`](../source):
 
 ```
 web/

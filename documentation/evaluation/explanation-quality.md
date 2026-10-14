@@ -1,7 +1,7 @@
 # คุณภาพของคำอธิบาย (explainability evaluation)
 
 ปิดแทร็กที่ 4 จาก 4 ที่ `PROJECT.md` สัปดาห์ 13–15 สัญญาไว้
-รันด้วย `python -m scripts.evaluate_explanations` · ผลดิบ: [`artifacts/explanation-evaluation.json`](../artifacts/explanation-evaluation.json)
+รันด้วย `python -m scripts.evaluate_explanations` · ผลดิบ: [`artifacts/explanation-evaluation.json`](../../artifacts/explanation-evaluation.json)
 
 > **การสร้าง SHAP ขึ้นมาได้ ไม่เท่ากับการพิสูจน์ว่าคำอธิบายเชื่อถือได้**
 > เอกสารนี้คือส่วนที่ถาม และคำตอบทำให้ต้องแก้ค่าที่ deploy อยู่
@@ -70,7 +70,7 @@ Kernel SHAP ลู่เข้าหาค่า Shapley จริงเมื�
 
 ## การแก้: เปลี่ยน nsamples จาก 100 เป็น 2,000
 
-`DEFAULT_NSAMPLES` ใน [`shap_explainer.py`](../source/explain/shap_explainer.py)
+`DEFAULT_NSAMPLES` ใน [`shap_explainer.py`](../../source/explain/shap_explainer.py)
 ปรับผ่าน `NIDS_SHAP_NSAMPLES` ได้
 
 | | 100 (เดิม) | **2,000 (ใหม่)** | 5,000 |

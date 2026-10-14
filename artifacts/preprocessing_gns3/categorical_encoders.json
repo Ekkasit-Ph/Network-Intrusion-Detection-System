@@ -1,0 +1,18 @@
+{
+  "PROTOCOL": {
+    "strategy": "onehot",
+    "categories": [
+      6.0,
+      17.0
+    ]
+  },
+  "L7_PROTO": {
+    "strategy": "onehot",
+    "categories": [
+      5.0,
+      7.0,
+      18.0,
+      222.0
+    ]
+  }
+}

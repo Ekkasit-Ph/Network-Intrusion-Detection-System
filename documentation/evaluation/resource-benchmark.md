@@ -1,7 +1,7 @@
 # ผลการวัดทรัพยากร (resource usage)
 
 ปิดแทร็กที่ 3 จาก 4 ที่ `PROJECT.md` สัปดาห์ 13–15 สัญญาไว้
-รันด้วย `python -m scripts.benchmark --suite` · ผลดิบอยู่ที่ [`artifacts/benchmark.json`](../artifacts/benchmark.json)
+รันด้วย `python -m scripts.benchmark --suite` · ผลดิบอยู่ที่ [`artifacts/benchmark.json`](../../artifacts/benchmark.json)
 
 ## เครื่องที่วัด
 
@@ -22,7 +22,7 @@ NVIDIA GeForce GTX 1650 4GB · torch 2.13.0 · Pop!_OS 24.04 (Linux 7.0.11)
 | CPU 8 threads | 8,796/s | 20,385/s | 2,131,340/s | 0.067 / 0.083 ms | 8.7 / 10.2 ms | 3.1 MB |
 | GPU | 8,630/s | 20,178/s | 5,033,637/s | **0.136 / 0.149 ms** | 6.5 / 7.0 ms | **90.8 MB** |
 
-ขั้นที่ 1–2 วัดบน pcap ที่สร้างขึ้น ([`scripts/synthetic_pcap.py`](../scripts/synthetic_pcap.py))
+ขั้นที่ 1–2 วัดบน pcap ที่สร้างขึ้น ([`scripts/synthetic_pcap.py`](../../scripts/synthetic_pcap.py))
 เพราะโครงงานยังไม่มี capture จริง · ขั้นที่ 3–4 วัดบนแถวจริงจากชุดทดสอบ
 
 ## สี่ข้อสรุป
@@ -75,10 +75,10 @@ SHAP 1 โฟลว์       8.716 ms   ← ช้ากว่า 130 เท่�
 ## บั๊กที่เจอระหว่างทำ benchmark นี้
 
 **`nfstream` หด CPU affinity ของ process จาก 8 เหลือ 2 อย่างถาวร และไม่คืนให้**
-([`nfstream/utils.py::set_affinity`](../.venv/lib/python3.12/site-packages/nfstream/utils.py) เรียกจาก `streamer.py:536`)
+([`nfstream/utils.py::set_affinity`](../../.venv/lib/python3.12/site-packages/nfstream/utils.py) เรียกจาก `streamer.py:536`)
 
 meter ของ nfstream รันใน process แยกอยู่แล้ว การบีบนี้จึงไปโดนแต่**ทุกอย่างที่อยู่ถัดจากตัวสกัด**
-— การ scale, การให้คะแนน, SHAP — ซึ่งใน [`live_capture.py`](../web/backend/live_capture.py) อยู่ใน process เดียวกันทั้งหมด
+— การ scale, การให้คะแนน, SHAP — ซึ่งใน [`live_capture.py`](../../web/backend/live_capture.py) อยู่ใน process เดียวกันทั้งหมด
 
 **ผลกระทบที่วัดได้:**
 
@@ -90,7 +90,7 @@ meter ของ nfstream รันใน process แยกอยู่แล้�
 สาเหตุที่รุนแรงขนาดนี้: torch ตั้ง thread pool ไว้ 4 threads แต่เหลือ CPU แค่ 2 ตัว
 threads แย่ง CPU กันแบบ spin-wait ทำให้ throughput ล่มแทนที่จะแค่ช้าลงตามสัดส่วน
 
-**การแก้:** [`sensor.py::extract`](../source/extraction/sensor.py) จำ affinity ตอนเข้า แล้วคืนให้หลังโฟลว์แรก
+**การแก้:** [`sensor.py::extract`](../../source/extraction/sensor.py) จำ affinity ตอนเข้า แล้วคืนให้หลังโฟลว์แรก
 ไม่ใช่การแย่ง CPU เพิ่ม — `taskset`, cgroup และ container limit ยังมีผลเหมือนเดิม
 เพราะสิ่งที่คืนคือ mask ที่ผู้เรียกให้มาตั้งแต่แรก
 
@@ -111,7 +111,7 @@ python -m scripts.benchmark --suite \
 # ภาค 2 — บีบสเปกลงให้ใกล้บอร์ดเล็ก
 
 `python -m scripts.benchmark --constrained --quotas 25,50,100,200,400 --memory-max 2G --isa default`
-ผลดิบ: [`artifacts/benchmark-constrained.json`](../artifacts/benchmark-constrained.json)
+ผลดิบ: [`artifacts/benchmark-constrained.json`](../../artifacts/benchmark-constrained.json)
 
 ## บีบอะไรได้ บีบอะไรไม่ได้
 
@@ -182,7 +182,7 @@ python -m scripts.benchmark --suite \
 ## บั๊กที่สอง: ShapExplainer ใช้ RAM 2 GB เพื่อเก็บข้อมูล 18 KB
 
 ตอนบีบ RAM ลง 1 GB ระบบถูก OOM kill ทันที ไล่ดูพบว่า
-[`ShapExplainer.__init__`](../source/explain/shap_explainer.py) อ่าน `train.parquet`
+[`ShapExplainer.__init__`](../../source/explain/shap_explainer.py) อ่าน `train.parquet`
 **ทั้ง 4,269,628 แถว × 48 คอลัมน์เข้า pandas เพื่อสุ่มมาเก็บแค่ 100 แถว**
 
 ```

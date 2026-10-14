@@ -1,0 +1,25 @@
+{
+  "method": "kde",
+  "value": 0.020540429373173227,
+  "percentile": null,
+  "selection_criterion": "max recall on validation set among candidates with FPR <= 0.05",
+  "val_metrics_at_selected_threshold": {
+    "precision": 0.9880952380952381,
+    "recall": 1.0,
+    "f1": 0.9940119760479043,
+    "fpr": 0.004166666666666667,
+    "accuracy": 0.9969040247678018
+  },
+  "calibration_reference": {
+    "benign_error_percentiles": {
+      "50": 0.00046291714534163475,
+      "75": 0.0007554911426268518,
+      "90": 0.0016297069378197193,
+      "95": 0.0029530650936067104,
+      "99": 0.006499770563095808
+    },
+    "benign_error_mean": 0.001591461943462491,
+    "expected_flag_rate_on_benign": 0.004166666666666667,
+    "n_val_benign": 240
+  }
+}

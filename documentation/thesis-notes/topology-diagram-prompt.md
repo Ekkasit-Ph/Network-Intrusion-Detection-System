@@ -4,7 +4,7 @@
 
 > **ตัวเลขทุกตัวในนี้ดึงจากเครือข่ายที่รันจริงบน VM เมื่อ 20 ก.ย. 2569** ไม่ได้อ่านจากโค้ด
 > — หมายเลขพอร์ต MAC และกฎ OpenFlow ตรวจสอบด้วย `ovs-ofctl dump-flows` แล้ว
-> ดู [mininet-integration-run.md](mininet-integration-run.md)
+> ดู [mininet-integration-run.md](../guides/mininet-integration-run.md)
 
 ---
 

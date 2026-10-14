@@ -295,7 +295,7 @@ def get_firewall_gaps(conn: sqlite3.Connection, limit: int = 200,
     """
     clause = " WHERE fc.gap_detected = 1" if gaps_only else ""
     rows = conn.execute(
-        f"""SELECT fc.*, f.timestamp, f.src_ip, f.dst_ip, f.dst_port, f.protocol,
+        f"""SELECT fc.*, f.timestamp, f.src_ip, f.src_port, f.dst_ip, f.dst_port, f.protocol,
                    f.reconstruction_error, f.threshold_used, f.is_anomaly
            FROM firewall_checks fc JOIN flows f ON fc.flow_id = f.flow_id{clause}
            ORDER BY f.timestamp DESC, fc.check_id DESC LIMIT ?""",

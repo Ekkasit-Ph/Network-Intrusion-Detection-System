@@ -1,6 +1,6 @@
 # การทดลอง: threshold แยกตามโปรโตคอล — **ผลเป็นลบ ไม่ควรนำไปใช้**
 
-รันด้วย `python -m scripts.protocol_thresholds` · ผลดิบ: [`artifacts/protocol-thresholds.json`](../artifacts/protocol-thresholds.json)
+รันด้วย `python -m scripts.protocol_thresholds` · ผลดิบ: [`artifacts/protocol-thresholds.json`](../../artifacts/protocol-thresholds.json)
 
 ## สมมติฐานตั้งต้น (ซึ่งผิด)
 

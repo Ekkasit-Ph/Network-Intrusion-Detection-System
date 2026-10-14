@@ -5,8 +5,9 @@
 
 Three segments behind one OpenFlow switch, plus the sensor on a fourth:
 
-    10.0.1.0/24   iot1..iot4     sensors/cameras -- benign background traffic
-    10.0.2.0/24   srv1, srv2     http/ssh/dns -- the things worth attacking
+    10.0.1.0/24   iot1..iot6     sensors/cameras -- benign background traffic
+    10.0.2.0/24   srv1, srv2     http/ssh -- the things worth attacking
+                  dns1           the network's DNS resolver (real UDP/53)
     10.0.3.0/24   atk1           where the attack scripts run
     10.0.4.0/24   nids1          the sensor, fed by a SPAN port
 
@@ -39,9 +40,23 @@ CONTROLLER_PORT = 6653
 HOSTS = [
     ("iot1", "10.0.1.11/24"), ("iot2", "10.0.1.12/24"),
     ("iot3", "10.0.1.13/24"), ("iot4", "10.0.1.14/24"),
+    ("iot5", "10.0.1.15/24"), ("iot6", "10.0.1.16/24"),
     ("srv1", "10.0.2.11/24"), ("srv2", "10.0.2.12/24"),
+    ("dns1", "10.0.2.13/24"),
     ("atk1", "10.0.3.11/24"),
 ]
+
+# Real networks are a mix of devices with different default TTLs -- Linux
+# hosts leave the stack at 64, Windows at 128, and a lot of embedded/IoT gear
+# at 255. With one TTL everywhere, MIN_TTL/MAX_TTL degenerate to a constant
+# and the model never learns they carry information (see the integration-run
+# notes on MIN_TTL being flat). Assigning a realistic spread per host is a
+# per-net-namespace sysctl, so each Mininet host can hold its own value.
+HOST_TTLS = {
+    "iot1": 255, "iot2": 255, "iot3": 64, "iot4": 128,
+    "iot5": 255, "iot6": 64, "srv1": 64, "srv2": 64,
+    "dns1": 64, "atk1": 64,
+}
 
 # The sensor gets a segment of its own so its address never appears in the
 # traffic it is metering. A monitoring host that also answers pings would
@@ -84,6 +99,17 @@ def _configure_routes(net) -> None:
         host = net.get(name)
         for subnet in SUBNETS:
             host.cmd(f"ip route replace {subnet} dev {host.defaultIntf()}")
+
+
+def set_realistic_ttls(net) -> None:
+    """Give hosts a realistic spread of default TTLs (see HOST_TTLS). Each
+    Mininet host is its own net namespace, so net.ipv4.ip_default_ttl is
+    independent per host."""
+    for name, ttl in HOST_TTLS.items():
+        try:
+            net.get(name).cmd(f"sysctl -w net.ipv4.ip_default_ttl={ttl} >/dev/null 2>&1")
+        except KeyError:
+            pass  # host not in this topology variant
 
 
 def mirror_to_sensor(net) -> str:
