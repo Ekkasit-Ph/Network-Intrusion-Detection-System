@@ -76,6 +76,15 @@ Everything needed to run is in the repository: the deployed model and a
 small committed demo sample (`data/demo_sample/`). No 2.5 GB dataset, no GPU —
 it builds and runs straight from a clone.
 
+> **The bundled model is a reference, not a plug-and-play detector for your
+> network.** It is trained on NF-ToN-IoT-v2 and is what powers the demo below
+> (replaying that dataset's test flows, where it gets 87.59% recall). An
+> autoencoder learns one network's definition of "normal" — point it at a
+> *different* network and its scores can collapse (AUROC fell to 0.000 in our
+> tests until retrained). **Before using it on real traffic, retrain on a
+> week or two of your own benign flows** — no attack labels needed. Steps:
+> [`documentation/guides/deployment-runbook.md`](documentation/guides/deployment-runbook.md).
+
 ### Docker — fastest, nothing to install
 
 ```bash

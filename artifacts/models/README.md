@@ -17,6 +17,12 @@ preprocessing in `artifacts/preprocessing_w50/`: `scaler.pkl` +
 on). The preprocessing must always travel with the model — swapping one
 without the other fails silently.
 
+> **This model is a reference/demo, trained on NF-ToN-IoT-v2.** It scores the
+> bundled demo data (same dataset) correctly, but an autoencoder is specific
+> to one network's "normal" — on a different network its scores can collapse
+> (AUROC → 0.000 in testing) until it is **retrained on that network's own
+> benign traffic**. See [`../../documentation/guides/deployment-runbook.md`](../../documentation/guides/deployment-runbook.md).
+
 **How the champion was chosen:** 50-trial Optuna/TPE sweep (full budget,
 epochs=100, patience=10), selected by recall @ FPR≤5%. Winning config above.
 recall 87.59% · macro F1 0.819. Progression: 29.60% (baseline) → 45.87%
