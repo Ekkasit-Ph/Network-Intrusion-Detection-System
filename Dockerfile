@@ -1,10 +1,11 @@
 # FlowSentry demo container — serves the FastAPI backend + static dashboard
 # (web/backend/main.py) from one process, pre-loaded with the deployed
-# champion model (artifacts/models/optuna-denoising-50) and just enough of
-# data/processed_w50/ to run: train.parquet for the SHAP background sample,
-# test.parquet for replay_demo.py's live-flow feed. val.parquet is
-# deliberately not copied in -- it's only used by threshold.py/evaluate.py,
-# never at serve time (see .dockerignore).
+# champion model (artifacts/models/optuna-denoising-50) and a small committed
+# demo sample (data/demo_sample/) so the image builds and runs straight from a
+# clone, with no 2GB dataset needed: train.parquet (2k scaled benign rows) for
+# the SHAP background sample, test.parquet (7k rows, all 10 classes) for
+# replay_demo.py's live-flow feed. To run against the full processed dataset
+# instead, point NIDS_PROCESSED_DIR at a data/processed_w50/ you mount in.
 #
 # CPU-only PyTorch on purpose: the deployed model is tiny (see
 # artifacts/models/README.md), inference is a few ms either way, and CPU
@@ -40,18 +41,18 @@ COPY network_simulation/__init__.py network_simulation/firewall_rules.py network
 COPY artifacts/models/optuna-denoising-50/ artifacts/models/optuna-denoising-50/
 COPY artifacts/preprocessing_w50/ artifacts/preprocessing_w50/
 
-# Just the processed-data files actually read at serve time (see header
-# comment) -- explicit per-file COPY so val.parquet (176MB, never used here)
-# doesn't end up in the image even by accident.
-COPY data/processed_w50/feature_columns.json data/processed_w50/train.parquet data/processed_w50/test.parquet \
-     data/processed_w50/
+# The committed demo sample read at serve time (see header comment). Small
+# enough to live in git, so `docker build` works from a fresh clone with no
+# external data. The full processed_w50/ parquets are gitignored (2GB) and
+# never needed to build this image.
+COPY data/demo_sample/ data/demo_sample/
 
 # SQLite DB lives here at runtime (created on first write by
 # web/backend/database.py) -- must exist and be writable.
 RUN mkdir -p data
 
 ENV NIDS_MODEL_DIR=/app/artifacts/models/optuna-denoising-50
-ENV NIDS_PROCESSED_DIR=/app/data/processed_w50
+ENV NIDS_PROCESSED_DIR=/app/data/demo_sample
 ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000

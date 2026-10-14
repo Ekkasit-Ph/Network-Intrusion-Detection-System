@@ -7,7 +7,12 @@
 data/raw
 data/processed
 data/processed_experiments
-data/processed_w50/val.parquet
+# The full processed splits are gitignored (2GB) and not used by the image --
+# it bakes in data/demo_sample/ instead. Exclude them from the build context
+# so a build on a machine that does have them stays fast.
+data/processed_w50
+data/mininet_demo
+data/gns3_demo
 data/nids.db
 
 artifacts/preprocessing

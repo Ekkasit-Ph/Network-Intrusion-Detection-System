@@ -73,14 +73,14 @@ excuse:
 
 ## Quick start
 
+Everything needed to run is in the repository: the deployed model and a
+small committed demo sample (`data/demo_sample/`). No 2.5 GB dataset, no GPU —
+it builds and runs straight from a clone.
+
 ### Docker — fastest, nothing to install
 
-The image bakes in the deployed model and just enough processed data to
-serve and replay. CPU-only PyTorch on purpose: no GPU or NVIDIA container
-runtime needed.
-
 ```bash
-docker compose up -d --build     # first build takes a few minutes
+docker compose up -d --build     # first build takes a few minutes (CPU torch wheel)
 docker compose exec app python -m web.backend.replay_demo --reset --n-flows 400 --rate 2 --loop
 ```
 
@@ -94,27 +94,28 @@ docker compose down -v     # wipes it too
 ### Local virtualenv
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install torch --index-url https://download.pytorch.org/whl/cpu   # CPU wheel; skip for GPU
 pip install -r requirements.txt
 
-NIDS_PROCESSED_DIR=data/processed_w50 \
 NIDS_MODEL_DIR=artifacts/models/optuna-denoising-50 \
+NIDS_PROCESSED_DIR=data/demo_sample \
 python -m uvicorn web.backend.main:app --port 8000
 ```
 
 Both environment variables are **required** — the built-in defaults point at
 `artifacts/models/default/`, which this project does not use. Startup takes
 25–30 s while the SHAP explainer loads; poll `/health` until it returns 200.
-
 Then feed it traffic in a second terminal:
 
 ```bash
 source .venv/bin/activate
 python -m web.backend.replay_demo --reset --n-flows 400 --rate 2 --loop \
-  --processed-dir data/processed_w50 --artifacts-dir artifacts/models/optuna-denoising-50
+  --processed-dir data/demo_sample --artifacts-dir artifacts/models/optuna-denoising-50
 ```
 
-Step-by-step instructions, including the firewall-gap check:
+Full install-on-another-machine guide, env-var reference, running against the
+full dataset and troubleshooting:
 [`documentation/how-to-run.md`](documentation/how-to-run.md).
 
 ## What the dashboard shows
