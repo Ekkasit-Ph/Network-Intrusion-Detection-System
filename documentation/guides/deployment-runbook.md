@@ -87,12 +87,13 @@ python -m source.model.train --artifacts-dir artifacts/models/<วันที�
 python -m source.model.threshold --artifacts-dir artifacts/models/<วันที่>
 python -m source.model.evaluate  --artifacts-dir artifacts/models/<วันที่>
 
-# เทียบกับตัวเดิมก่อนสลับ
+# ดูผลของตัวใหม่ (evaluate.py สร้าง metrics_report.json ในโฟลเดอร์นี้ให้)
 python -c "
 import json
-for d in ('optuna-denoising-50','<วันที่>'):
-    m=json.load(open(f'artifacts/models/{d}/metrics_report.json'))['overall']
-    print(d, 'recall', round(m['attack_class']['recall']*100,2), 'FPR', round(m['fpr']*100,2))"
+m=json.load(open('artifacts/models/<วันที่>/metrics_report.json'))['overall']
+print('recall', round(m['attack_class']['recall']*100,2), 'FPR', round(m['fpr']*100,2))"
+# เทียบกับแชมป์ปัจจุบัน: recall 87.59% / FPR 4.97%
+# (metrics_report.json ของ optuna-denoising-50 อยู่บน branch development)
 ```
 
 **สลับ:** เปลี่ยน `NIDS_MODEL_DIR` แล้วรีสตาร์ท backend (~1 วินาที)
@@ -113,7 +114,7 @@ for d in ('optuna-denoising-50','<วันที่>'):
 **2. Concept drift** — เครือข่ายเปลี่ยน "ปกติ" ก็เปลี่ยน ต้องมีแผนเทรนซ้ำเป็นระยะ
 
 **3. ปริมาณการแจ้งเตือน** — FPR 5% ของ 100,000 flow/วัน = ~4,700 การแจ้งเตือนลวงต่อวัน
-ดู [alert-aggregation.md](../evaluation/alert-aggregation.md)
+(การรวมกลุ่ม alert วิเคราะห์ไว้ใน `alert-aggregation.md` บน branch `development`)
 
 ## จ. สิ่งที่ยังไม่มี
 

@@ -40,13 +40,9 @@ artifacts/**/*.csv
 !artifacts/models/optuna-denoising-50/**
 !artifacts/preprocessing_w50/**
 
-# ...and the resource benchmark, which is a measurement rather than a
-# generated model file. The rule above is about not versioning large
-# derived artifacts; this is 6KB of results that a report cites.
-!artifacts/benchmark.json
-!artifacts/benchmark-constrained.json
-!artifacts/explanation-evaluation.json
-!artifacts/protocol-thresholds.json
+# (Evaluation reports -- benchmark*.json, metrics_report*.json, SHAP-quality,
+# protocol-thresholds -- are not kept on main; they live on the development
+# branch with the scripts that generate them.)
 
 # ---- Python ----------------------------------------------------------
 __pycache__/

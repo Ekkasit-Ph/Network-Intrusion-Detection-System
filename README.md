@@ -67,9 +67,8 @@ Excluding UDP entirely and re-scoring at the same frozen threshold:
 | UDP excluded | **94.10%** | 4.81% | **0.9025** |
 
 Read 87.59% as the headline and 94.10% as what the detector does on traffic
-whose labels can be trusted. Full analysis, including what this does *not*
-excuse:
-[`documentation/dataset-limitations.md`](documentation/evaluation/dataset-limitations.md).
+whose labels can be trusted. The full analysis (`dataset-limitations.md`) and
+every evaluation report live on the **`development`** branch.
 
 ## Quick start
 
@@ -252,14 +251,16 @@ pytest
 
 ## Documentation
 
-Start at the index — [`documentation/README.md`](documentation/README.md) —
-which maps every document into *guides/* and *evaluation/*. The ones worth
-opening first:
+Start at the index — [`documentation/README.md`](documentation/README.md).
+The ones worth opening first:
 
 | file | what's in it |
 |---|---|
+| [`how-to-run.md`](documentation/how-to-run.md) | install on another machine — Docker and venv, env vars, troubleshooting |
 | [`PROJECT.md`](documentation/PROJECT.md) | full specification and design decisions |
-| [`how-to-run.md`](documentation/how-to-run.md) | run instructions, venv and Docker |
-| [`MODEL_DEVELOPMENT.md`](documentation/evaluation/MODEL_DEVELOPMENT.md) | what was tried, what worked, what did not |
-| [`dataset-limitations.md`](documentation/evaluation/dataset-limitations.md) | measured caveats behind every reported number |
 | [`deployment-runbook.md`](documentation/guides/deployment-runbook.md) | deploy for real: first run, and retraining when the network changes |
+| [`dashboard-spec.md`](documentation/guides/dashboard-spec.md) | what the dashboard shows and how it is laid out |
+
+The model-development log, the measured dataset caveats and every evaluation
+report (benchmarks, SHAP quality, per-class metrics) are on the
+**`development`** branch.

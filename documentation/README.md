@@ -24,19 +24,16 @@
 | [guides/deployment-runbook.md](guides/deployment-runbook.md) | คู่มือนำไปใช้จริง: เริ่มใช้ครั้งแรก + ขั้นตอนเทรนใหม่เมื่อเจอ domain shift |
 | [guides/dashboard-spec.md](guides/dashboard-spec.md) | สเปกหน้าแดชบอร์ด |
 
-> คู่มือเครือข่ายจำลอง (Mininet VM, GNS3 ที่ลง OS จริง, เดโมสด) และสคริปต์
-> simulation ทั้งหมดอยู่บน branch **`development`** — เป็นเครื่องมือตอนพัฒนา/ทดสอบ
-> ไม่ใช่ส่วนที่ผู้ใช้ติดตั้ง (`git checkout development`)
-
 ---
 
-## 📊 evaluation/ — การวัดผลและการทดลอง
+## บน branch `development`
 
-| ไฟล์ | เนื้อหา |
-|---|---|
-| [evaluation/MODEL_DEVELOPMENT.md](evaluation/MODEL_DEVELOPMENT.md) | บันทึกพัฒนาโมเดล: ทำความสะอาดข้อมูล → เทรน → จูน อะไรเวิร์ก/ไม่เวิร์ก |
-| [evaluation/dataset-limitations.md](evaluation/dataset-limitations.md) | ข้อจำกัดของชุดข้อมูล NF-ToN-IoT-v2 ที่วัดได้จริง — caveat เบื้องหลังทุกตัวเลข |
-| [evaluation/resource-benchmark.md](evaluation/resource-benchmark.md) | ผลวัดทรัพยากร (CPU/GPU/throughput/latency) — คอขวดอยู่ที่การสกัดฟีเจอร์ |
-| [evaluation/explanation-quality.md](evaluation/explanation-quality.md) | คุณภาพคำอธิบาย SHAP (local accuracy) |
-| [evaluation/alert-aggregation.md](evaluation/alert-aggregation.md) | การรวมกลุ่มการแจ้งเตือน (fan-out / fan-in / repeated) |
-| [evaluation/protocol-threshold-experiment.md](evaluation/protocol-threshold-experiment.md) | การทดลอง threshold แยกตามโปรโตคอล — **ผลเป็นลบ ไม่นำไปใช้** |
+เครื่องมือและเอกสารที่ไม่เกี่ยวกับการติดตั้งใช้งาน เก็บไว้บน branch `development`
+(`git checkout development`):
+
+- **เครือข่ายจำลอง** — Mininet VM, GNS3 ที่ลง OS จริง, เดโมสด, สคริปต์ traffic/attack
+- **การวัดผลและการทดลอง** (`documentation/evaluation/`) — บันทึกพัฒนาโมเดล,
+  ข้อจำกัดชุดข้อมูล, resource benchmark, คุณภาพ SHAP, การรวมกลุ่ม alert,
+  การทดลอง threshold แยกโปรโตคอล
+- **รายงานผลดิบ** (`artifacts/benchmark*.json`, `metrics_report*.json`, ฯลฯ)
+- **ชุดทดสอบ** `pytest` และสคริปต์ benchmark
